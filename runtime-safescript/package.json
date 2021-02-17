@@ -16,5 +16,9 @@
     "email" : "redradist@gmail.com",
     "url" : "https://github.com/redradist/SafeScript"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
 }
