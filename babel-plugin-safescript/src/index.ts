@@ -1,7 +1,6 @@
-import t from "@babel/types";
-import { AssignmentExpression, BinaryExpression } from "@babel/types";
+let t = require("@babel/types");
 
-function safeConvertBinaryExpression(node: BinaryExpression) {
+function getSafeBinaryExpression(node) {
     let safeOperatorName: string | null = null;
     switch (node.operator) {
         case "+":   safeOperatorName = 'SafeScript.add'; break;
@@ -30,7 +29,7 @@ function safeConvertBinaryExpression(node: BinaryExpression) {
     return null;
 }
 
-function safeConvertAssignmentExpression(node: AssignmentExpression) {
+function getSafeAssignmentExpression(node) {
     let safeOperatorName: string | null = null;
     switch (node.operator) {
         case "+=":   safeOperatorName = 'SafeScript.add'; break;
@@ -50,13 +49,13 @@ export default function({ types }) {
     return {
         visitor: {
             BinaryExpression(path) {
-                const safeExpression = safeConvertBinaryExpression(path.node);
+                const safeExpression = getSafeBinaryExpression(path.node);
                 if (safeExpression) {
                     path.replaceWith(safeExpression);
                 }
             },
             AssignmentExpression(path) {
-                const safeExpression = safeConvertAssignmentExpression(path.node);
+                const safeExpression = getSafeAssignmentExpression(path.node);
                 if (safeExpression) {
                     path.replaceWith(safeExpression);
                 }

@@ -85,29 +85,29 @@ SafeScript.ne = function(left, right) {
     throw new InvalidBinaryOperation("!=", left, right);
 };
 SafeScript.gt = function(left, right) {
-    if (["boolean", "number"].includes(typeof left) &&
-        ["boolean", "number"].includes(typeof right)) {
+    if (["boolean", "number", "bigint"].includes(typeof left) &&
+        ["boolean", "number", "bigint"].includes(typeof right)) {
         return left > right;
     }
     throw new InvalidBinaryOperation(">", left, right);
 };
 SafeScript.ge = function(left, right) {
-    if (["boolean", "number"].includes(typeof left) &&
-        ["boolean", "number"].includes(typeof right)) {
+    if (["boolean", "number", "bigint"].includes(typeof left) &&
+        ["boolean", "number", "bigint"].includes(typeof right)) {
         return left >= right;
     }
     throw new InvalidBinaryOperation(">=", left, right);
 };
 SafeScript.lt = function(left, right) {
-    if (["boolean", "number"].includes(typeof left) &&
-        ["boolean", "number"].includes(typeof right)) {
+    if (["boolean", "number", "bigint"].includes(typeof left) &&
+        ["boolean", "number", "bigint"].includes(typeof right)) {
         return left < right;
     }
     throw new InvalidBinaryOperation("<", left, right);
 };
 SafeScript.le = function(left, right) {
-    if (["boolean", "number"].includes(typeof left) &&
-        ["boolean", "number"].includes(typeof right)) {
+    if (["boolean", "number", "bigint"].includes(typeof left) &&
+        ["boolean", "number", "bigint"].includes(typeof right)) {
         return left <= right;
     }
     throw new InvalidBinaryOperation("<=", left, right);
@@ -154,6 +154,7 @@ SafeScript.lshift = function(left, right) {
     }
     throw new InvalidBinaryOperation("<<", left, right);
 };
+Object.freeze(SafeScript);
 
 const globalObject = (1, eval)('this');
 globalObject.SafeScript = SafeScript;
