@@ -1,0 +1,26 @@
+{
+  "name": "babel-safescript",
+  "version": "1.0.0",
+  "description": "",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "start": "tsc && node dist/index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": {
+    "name" : "redradist",
+    "email" : "redradist@gmail.com",
+    "url" : "https://github.com/redradist"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@babel/parser": "^7.12.16",
+    "@babel/traverse": "^7.12.13",
+    "typescript": "^4.1.5"
+  },
+  "dependencies": {
+    "@babel/types": "^7.12.13"
+  }
+}

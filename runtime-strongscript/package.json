@@ -1,0 +1,17 @@
+{
+  "name": "strongscript",
+  "version": "0.1.0",
+  "description": "",
+  "main": "src/safescript.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": {
+    "name" : "redradist",
+    "email" : "redradist@gmail.com",
+    "url" : "https://github.com/redradist"
+  },
+  "license": "MIT"
+}
