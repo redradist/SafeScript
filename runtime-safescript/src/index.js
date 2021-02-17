@@ -69,8 +69,8 @@ SafeScript.exp = function(left, right) {
 SafeScript.eq = function(left, right) {
     if (typeof left === typeof right) {
         return left == right;
-    } else if (["boolean", "number"].includes(typeof left) &&
-               ["boolean", "number"].includes(typeof right)) {
+    } else if (["boolean", "number", "bigint"].includes(typeof left) &&
+               ["boolean", "number", "bigint"].includes(typeof right)) {
         return left == right;
     }
     throw new InvalidBinaryOperation("==", left, right);
@@ -78,8 +78,8 @@ SafeScript.eq = function(left, right) {
 SafeScript.ne = function(left, right) {
     if (typeof left === typeof right) {
         return left != right;
-    } else if (["boolean", "number"].includes(typeof left) &&
-               ["boolean", "number"].includes(typeof right)) {
+    } else if (["boolean", "number", "bigint"].includes(typeof left) &&
+               ["boolean", "number", "bigint"].includes(typeof right)) {
         return left != right;
     }
     throw new InvalidBinaryOperation("!=", left, right);
