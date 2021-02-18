@@ -15,7 +15,7 @@
   "devDependencies": {
     "@babel/cli": "^7.12.16",
     "@redradist/babel-plugin-safescript": "^0.1.0",
-    "@redradist/runtime-safescript": "^0.1.1",
+    "@redradist/module-runtime-safescript": "^0.3.0",
     "babel-preset-es2015": "^6.24.1"
   }
 }
