@@ -5,6 +5,7 @@ class Shape {
   }
 
   get shape() {
+    SafeScript.plus(m);
     return SafeScript.mul(n, m);
   }
 

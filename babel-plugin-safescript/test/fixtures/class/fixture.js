@@ -5,6 +5,7 @@ class Shape {
   }
 
   get shape() {
+    +m;
     return (n * m);
   }
 

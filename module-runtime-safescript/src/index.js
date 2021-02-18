@@ -1,4 +1,4 @@
-function convertToNumber(obj) {
+function implicitToNumber(obj) {
     let value = obj;
     if (typeof obj === "string") {
         throw new TypeError("can't convert string to number");
@@ -22,7 +22,7 @@ function convertToNumber(obj) {
     return value;
 }
 
-function convertToString(obj) {
+function implicitToString(obj) {
     let value = obj;
     if (["object", "function"].includes(typeof obj)) {
         if (Symbol.toPrimitive in obj) {
@@ -47,41 +47,41 @@ SafeScript.add = function(left, right) {
         return left + right;
     } else if (typeof left === "string" &&
                ["object", "function"].includes(typeof right)) {
-        let right_string = convertToString(right);
+        let right_string = implicitToString(right);
         return left + right_string;
     } else if (["object", "function"].includes(typeof left) &&
         typeof right === "string") {
-        let left_string = convertToString(left);
+        let left_string = implicitToString(left);
         return left_string + right;
     } else {
-        let left_value = convertToNumber(left);
-        let right_value = convertToNumber(right);
+        let left_value = implicitToNumber(left);
+        let right_value = implicitToNumber(right);
         return left_value + right_value;
     }
 };
 SafeScript.sub = function(left, right) {
-    let left_value = convertToNumber(left);
-    let right_value = convertToNumber(right);
+    let left_value = implicitToNumber(left);
+    let right_value = implicitToNumber(right);
     return left_value - right_value;
 };
 SafeScript.mul = function(left, right) {
-    let left_value = convertToNumber(left);
-    let right_value = convertToNumber(right);
+    let left_value = implicitToNumber(left);
+    let right_value = implicitToNumber(right);
     return left_value * right_value;
 };
 SafeScript.div = function(left, right) {
-    let left_value = convertToNumber(left);
-    let right_value = convertToNumber(right);
+    let left_value = implicitToNumber(left);
+    let right_value = implicitToNumber(right);
     return left_value / right_value;
 };
 SafeScript.mod = function(left, right) {
-    let left_value = convertToNumber(left);
-    let right_value = convertToNumber(right);
+    let left_value = implicitToNumber(left);
+    let right_value = implicitToNumber(right);
     return left_value % right_value;
 };
 SafeScript.exp = function(left, right) {
-    let left_value = convertToNumber(left);
-    let right_value = convertToNumber(right);
+    let left_value = implicitToNumber(left);
+    let right_value = implicitToNumber(right);
     return left_value ** right_value;
 };
 SafeScript.eq = function(left, right) {
@@ -94,8 +94,8 @@ SafeScript.eq = function(left, right) {
                ["boolean", "number", "bigint"].includes(typeof right)) {
         return left == right;
     } else {
-        let left_value = convertToNumber(left);
-        let right_value = convertToNumber(right);
+        let left_value = implicitToNumber(left);
+        let right_value = implicitToNumber(right);
         return left_value == right_value;
     }
 };
@@ -103,54 +103,105 @@ SafeScript.ne = function(left, right) {
     return !SafeScript.eq(left, right);
 };
 SafeScript.gt = function(left, right) {
-    let left_value = convertToNumber(left);
-    let right_value = convertToNumber(right);
+    let left_value = implicitToNumber(left);
+    let right_value = implicitToNumber(right);
     return left_value > right_value;
 };
 SafeScript.ge = function(left, right) {
-    let left_value = convertToNumber(left);
-    let right_value = convertToNumber(right);
+    let left_value = implicitToNumber(left);
+    let right_value = implicitToNumber(right);
     return left_value >= right_value;
 };
 SafeScript.lt = function(left, right) {
-    let left_value = convertToNumber(left);
-    let right_value = convertToNumber(right);
+    let left_value = implicitToNumber(left);
+    let right_value = implicitToNumber(right);
     return left_value < right_value;
 };
 SafeScript.le = function(left, right) {
-    let left_value = convertToNumber(left);
-    let right_value = convertToNumber(right);
+    let left_value = implicitToNumber(left);
+    let right_value = implicitToNumber(right);
     return left_value <= right_value;
 };
 SafeScript.and = function(left, right) {
-    let left_value = convertToNumber(left);
-    let right_value = convertToNumber(right);
+    let left_value = implicitToNumber(left);
+    let right_value = implicitToNumber(right);
     return left_value & right_value;
 };
 SafeScript.or = function(left, right) {
-    let left_value = convertToNumber(left);
-    let right_value = convertToNumber(right);
+    let left_value = implicitToNumber(left);
+    let right_value = implicitToNumber(right);
     return left_value | right_value;
 };
 SafeScript.xor = function(left, right) {
-    let left_value = convertToNumber(left);
-    let right_value = convertToNumber(right);
+    let left_value = implicitToNumber(left);
+    let right_value = implicitToNumber(right);
     return left_value ^ right_value;
 };
 SafeScript.rshfit = function(left, right) {
-    let left_value = convertToNumber(left);
-    let right_value = convertToNumber(right);
+    let left_value = implicitToNumber(left);
+    let right_value = implicitToNumber(right);
     return left_value >> right_value;
 };
 SafeScript.arshift = function(left, right) {
-    let left_value = convertToNumber(left);
-    let right_value = convertToNumber(right);
+    let left_value = implicitToNumber(left);
+    let right_value = implicitToNumber(right);
     return left_value >>> right_value;
 };
 SafeScript.lshift = function(left, right) {
-    let left_value = convertToNumber(left);
-    let right_value = convertToNumber(right);
+    let left_value = implicitToNumber(left);
+    let right_value = implicitToNumber(right);
     return left_value << right_value;
+};
+SafeScript.plus = function (val) {
+    let val_type = typeof val;
+    let val_num;
+    if (val_type === "string") {
+        val_num = Number(val);
+    } else {
+        val_num = implicitToNumber(val);
+    }
+    if (typeof val_num !== "number") {
+        throw new TypeError(`can't convert ${val_type} to number`);
+    }
+    return val_num;
+};
+SafeScript.minus = function (val) {
+    let val_type = typeof val;
+    let val_num = implicitToNumber(val);
+    if (typeof val_num !== "number") {
+        throw new TypeError(`can't convert ${val_type} to number`);
+    }
+    return (-val_num);
+};
+SafeScript.bit_not = function (val) {
+    let val_type = typeof val;
+    let val_num = implicitToNumber(val);
+    if (typeof val_num !== "number") {
+        throw new TypeError(`can't convert ${val_type} to number`);
+    }
+    return (~val_num);
+};
+let suffix_value;
+SafeScript.inc = function (val) {
+    let val_type = typeof val;
+    let val_num = implicitToNumber(val);
+    if (typeof val_num !== "number") {
+        throw new TypeError(`can't convert ${val_type} to number`);
+    }
+    suffix_value = val_num;
+    return val_num + 1;
+};
+SafeScript.dec = function (val) {
+    let val_type = typeof val;
+    let val_num = implicitToNumber(val);
+    if (typeof val_num !== "number") {
+        throw new TypeError(`can't convert ${val_type} to number`);
+    }
+    suffix_value = val_num;
+    return val_num - 1;
+};
+SafeScript.suffix = function () {
+    return suffix_value;
 };
 Object.freeze(SafeScript);
 

@@ -5,3 +5,5 @@ function calcSquare(t) {
 let k = 3;
 let l = 5;
 k += l;
+let u = (1, k++);
+++k;

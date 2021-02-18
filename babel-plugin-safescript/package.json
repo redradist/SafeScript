@@ -1,6 +1,6 @@
 {
   "name": "@redradist/babel-plugin-safescript",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "This Babel Plugin allow to transform JavaScript Runtime to apply type checking at Runtime for performing implicit coercion",
   "main": "dist/index.js",
   "scripts": {

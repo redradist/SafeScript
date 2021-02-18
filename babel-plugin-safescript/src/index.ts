@@ -45,6 +45,44 @@ function getSafeAssignmentExpression(node) {
     return null;
 }
 
+function getSafeUnaryExpression(node) {
+    let safeOperatorName: string | null = null;
+    switch (node.operator) {
+        case "+":   safeOperatorName = 'SafeScript.plus'; break;
+        case "-":   safeOperatorName = 'SafeScript.minus'; break;
+        case "~":   safeOperatorName = 'SafeScript.bit_not'; break;
+    }
+    if (safeOperatorName) {
+        // @ts-ignore
+        return t.callExpression(t.identifier(safeOperatorName), [node.argument]);
+    }
+    return null;
+}
+
+function getSafeUpdateExpression(node) {
+    let safeOperatorName: string | null = null;
+    let safeBackOperatorName: string | null = null;
+    switch (node.operator) {
+        case "++":   safeOperatorName = 'SafeScript.inc'; break;
+        case "--":   safeOperatorName = 'SafeScript.dec'; break;
+    }
+    if (safeOperatorName) {
+        if (node.prefix) {
+            // @ts-ignore
+            return t.parenthesizedExpression(
+                t.assignmentExpression("=", node.argument, t.callExpression(t.identifier(safeOperatorName), [node.argument]))
+            );
+        } else {
+            // @ts-ignore
+            return t.sequenceExpression([
+                t.assignmentExpression("=", node.argument, t.callExpression(t.identifier(safeOperatorName), [node.argument])),
+                t.callExpression(t.identifier("SafeScript.suffix"), [])
+            ]);
+        }
+    }
+    return null;
+}
+
 export default function({ types }) {
     return {
         visitor: {
@@ -56,6 +94,18 @@ export default function({ types }) {
             },
             AssignmentExpression(path) {
                 const safeExpression = getSafeAssignmentExpression(path.node);
+                if (safeExpression) {
+                    path.replaceWith(safeExpression);
+                }
+            },
+            UnaryExpression(path) {
+                const safeExpression = getSafeUnaryExpression(path.node);
+                if (safeExpression) {
+                    path.replaceWith(safeExpression);
+                }
+            },
+            UpdateExpression(path) {
+                const safeExpression = getSafeUpdateExpression(path.node);
                 if (safeExpression) {
                     path.replaceWith(safeExpression);
                 }
