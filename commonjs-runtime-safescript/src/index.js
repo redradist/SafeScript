@@ -27,7 +27,7 @@ function implicitToString(obj) {
     if (["object", "function"].includes(typeof obj)) {
         if (Symbol.toPrimitive in obj) {
             value = obj[Symbol.toPrimitive]("string");
-            if (typeof value !== "number") {
+            if (typeof value !== "string") {
                 throw new TypeError("can't convert object to string");
             }
         } else {
