@@ -1,7 +1,7 @@
 {
   "name": "@redradist/module-runtime-safescript",
-  "version": "0.4.2",
-  "description": "",
+  "version": "0.5.0",
+  "description": "ECMA module package for SafeScript runtime",
   "main": "src/index.js",
   "type": "module",
   "scripts": {
@@ -12,9 +12,9 @@
     "safe"
   ],
   "author": {
-    "name" : "redradist",
-    "email" : "redradist@gmail.com",
-    "url" : "https://github.com/redradist/SafeScript"
+    "name": "redradist",
+    "email": "redradist@gmail.com",
+    "url": "https://github.com/redradist/SafeScript"
   },
   "license": "MIT",
   "publishConfig": {
