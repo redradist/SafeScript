@@ -152,6 +152,37 @@ function getSafeUnaryExpression(operator: string,
     return null;
 }
 
+function getSafeUpdateExpression(operator: string,
+                                 node: ts.Expression,
+                                 prefix: boolean,
+                                 typeChecker: ts.TypeChecker,
+                                 nodeFactory: ts.NodeFactory) {
+    let safeOperatorName: string | null = null;
+    let safeBackOperatorName: string | null = null;
+    switch (operator) {
+        case "++":   safeOperatorName = 'SafeScript.inc'; break;
+        case "--":   safeOperatorName = 'SafeScript.dec'; break;
+    }
+    if (safeOperatorName) {
+        if (prefix) {
+            return nodeFactory.createAssignment(
+                node,
+                nodeFactory.createParenthesizedExpression(
+                    nodeFactory.createCallExpression(nodeFactory.createIdentifier(safeOperatorName), [], [node]))
+            );
+        } else {
+            return nodeFactory.createAssignment(
+                node,
+                nodeFactory.createParenthesizedExpression(
+                nodeFactory.createComma(
+                    nodeFactory.createCallExpression(nodeFactory.createIdentifier(safeOperatorName), [], [node]),
+                    nodeFactory.createCallExpression(nodeFactory.createIdentifier("SafeScript.suffix"), [], [])
+            )));
+        }
+    }
+    return null;
+}
+
 class SafeScriptTransformer {
     private isUpdated: boolean;
     private typeChecker?: ts.TypeChecker;
@@ -246,7 +277,17 @@ class SafeScriptTransformer {
                             return safeUnaryExpression;
                         }
                     } else if (isUpdateOperator(operator_string)) {
+                        const safeUpdateExpression = getSafeUpdateExpression(
+                            operator_string,
+                            node.operand,
+                            ts.isPrefixUnaryExpression(node),
+                            transformer.typeChecker,
+                            context.factory);
 
+                        if (safeUpdateExpression) {
+                            transformer.isUpdated = true;
+                            return safeUpdateExpression;
+                        }
                     }
                 }
 
