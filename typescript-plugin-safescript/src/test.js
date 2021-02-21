@@ -1,20 +1,19 @@
-const num00 = "3124122";
+const str0 = "3124122";
 const num0 = 9;
-const num000 = "3124122";
-const num3224 = num000 - num0;
-const num63 = 55 + num3224;
-const num = 5 + num0;
-const num2 = (num + 1) + 8;
-let sadasd = 3;
-sadasd += "3";
+const str1 = "3124122";
+const num1 = str1 - num0;
+const num2 = 55 + num1;
+const num3 = 5 + num0;
+const num4 = (num3 + 1) + 8;
+let num5 = 3;
+num5 += "3";
 
-let asdas = "24256";
-let asdasfgsas = +asdas;
+let str2 = "24256";
+let numstr2 = +str2;
 
-++asdasfgsas;
+++numstr2;
 
 function something(num) {
-    // return Number(num) + 88;
     if (typeof num === "number") {
         return num + 88;
     }

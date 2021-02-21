@@ -173,19 +173,19 @@ function getSafeUpdateExpression(operator: string,
             return null;
         } else {
             if (prefix) {
-                return nodeFactory.createAssignment(
-                    node,
-                    nodeFactory.createParenthesizedExpression(
+                return nodeFactory.createParenthesizedExpression(
+                    nodeFactory.createAssignment(
+                        node,
                         nodeFactory.createCallExpression(nodeFactory.createIdentifier(safeOperatorName), [], [node]))
                 );
             } else {
-                return nodeFactory.createAssignment(
-                    node,
-                    nodeFactory.createParenthesizedExpression(
-                        nodeFactory.createComma(
-                            nodeFactory.createCallExpression(nodeFactory.createIdentifier(safeOperatorName), [], [node]),
-                            nodeFactory.createCallExpression(nodeFactory.createIdentifier("SafeScript.suffix"), [], [])
-                        )));
+                return nodeFactory.createParenthesizedExpression(
+                    nodeFactory.createComma(
+                        nodeFactory.createAssignment(
+                            node,
+                            nodeFactory.createCallExpression(nodeFactory.createIdentifier(safeOperatorName), [], [node])),
+                        nodeFactory.createCallExpression(nodeFactory.createIdentifier("SafeScript.suffix"), [], [])
+                    ));
             }
         }
     }
