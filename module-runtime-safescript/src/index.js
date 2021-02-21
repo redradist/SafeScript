@@ -1,5 +1,5 @@
 function implicitToNumber(obj) {
-    let obj_type = typeof obj;
+    const obj_type = typeof obj;
     if (["number", "boolean"].includes(obj_type)) {
         return obj;
     } else if (["object", "function"].includes(obj_type)) {
@@ -26,7 +26,7 @@ function implicitToNumber(obj) {
     throw new TypeError(`can't convert ${obj_type} to number`);
 }
 function implicitToString(obj) {
-    let obj_type = typeof obj;
+    const obj_type = typeof obj;
     if (obj_type === "string") {
         return obj;
     } else if (["object", "function"].includes(obj_type)) {
@@ -55,7 +55,7 @@ function implicitToString(obj) {
 function isSafeOperation(left_type, right_type, types) {
     let left_like = false;
     let right_like = false;
-    for (let ty of types) {
+    for (const ty of types) {
         if (left_type === ty) {
             left_like = true;
         }
@@ -69,8 +69,8 @@ function isSafeOperation(left_type, right_type, types) {
 }
 const SafeScript = {};
 SafeScript.add = function(left, right) {
-    let left_type = typeof left;
-    let right_type = typeof right;
+    const left_type = typeof left;
+    const right_type = typeof right;
     if (left_type === "string" || right_type === "string") {
         let left_string = implicitToString(left);
         let right_string = implicitToString(right);
@@ -79,74 +79,74 @@ SafeScript.add = function(left, right) {
         ["number", "boolean", "bigint", "symbol"])) {
         return left + right;
     } else {
-        let left_value = implicitToNumber(left);
-        let right_value = implicitToNumber(right);
+        const left_value = implicitToNumber(left);
+        const right_value = implicitToNumber(right);
         return left_value + right_value;
     }
 };
 SafeScript.sub = function(left, right) {
-    let left_type = typeof left;
-    let right_type = typeof right;
+    const left_type = typeof left;
+    const right_type = typeof right;
     if (isSafeOperation(left_type, right_type,
         ["number", "boolean", "bigint", "symbol"])) {
         return left - right;
     } else {
-        let left_value = implicitToNumber(left);
-        let right_value = implicitToNumber(right);
+        const left_value = implicitToNumber(left);
+        const right_value = implicitToNumber(right);
         return left_value - right_value;
     }
 };
 SafeScript.mul = function(left, right) {
-    let left_type = typeof left;
-    let right_type = typeof right;
+    const left_type = typeof left;
+    const right_type = typeof right;
     if (isSafeOperation(left_type, right_type,
         ["number", "boolean", "bigint", "symbol"])) {
         return left * right;
     } else {
-        let left_value = implicitToNumber(left);
-        let right_value = implicitToNumber(right);
+        const left_value = implicitToNumber(left);
+        const right_value = implicitToNumber(right);
         return left_value * right_value;
     }
 };
 SafeScript.div = function(left, right) {
-    let left_type = typeof left;
-    let right_type = typeof right;
+    const left_type = typeof left;
+    const right_type = typeof right;
     if (isSafeOperation(left_type, right_type,
         ["number", "boolean", "bigint", "symbol"])) {
         return left / right;
     } else {
-        let left_value = implicitToNumber(left);
-        let right_value = implicitToNumber(right);
+        const left_value = implicitToNumber(left);
+        const right_value = implicitToNumber(right);
         return left_value / right_value;
     }
 };
 SafeScript.mod = function(left, right) {
-    let left_type = typeof left;
-    let right_type = typeof right;
+    const left_type = typeof left;
+    const right_type = typeof right;
     if (isSafeOperation(left_type, right_type,
         ["number", "boolean", "bigint", "symbol"])) {
         return left % right;
     } else {
-        let left_value = implicitToNumber(left);
-        let right_value = implicitToNumber(right);
+        const left_value = implicitToNumber(left);
+        const right_value = implicitToNumber(right);
         return left_value % right_value;
     }
 };
 SafeScript.exp = function(left, right) {
-    let left_type = typeof left;
-    let right_type = typeof right;
+    const left_type = typeof left;
+    const right_type = typeof right;
     if (isSafeOperation(left_type, right_type,
         ["number", "boolean", "bigint", "symbol"])) {
         return left ** right;
     } else {
-        let left_value = implicitToNumber(left);
-        let right_value = implicitToNumber(right);
+        const left_value = implicitToNumber(left);
+        const right_value = implicitToNumber(right);
         return left_value ** right_value;
     }
 };
 SafeScript.eq = function(left, right) {
-    let left_type = typeof left;
-    let right_type = typeof right;
+    const left_type = typeof left;
+    const right_type = typeof right;
     if (left_type === right_type) {
         return left == right;
     } else if (isSafeOperation(left_type, right_type,
@@ -156,8 +156,8 @@ SafeScript.eq = function(left, right) {
         ["number", "boolean", "bigint", "symbol"])) {
         return left == right;
     } else {
-        let left_value = implicitToNumber(left);
-        let right_value = implicitToNumber(right);
+        const left_value = implicitToNumber(left);
+        const right_value = implicitToNumber(right);
         return left_value == right_value;
     }
 };
@@ -165,170 +165,153 @@ SafeScript.ne = function(left, right) {
     return !SafeScript.eq(left, right);
 };
 SafeScript.gt = function(left, right) {
-    let left_type = typeof left;
-    let right_type = typeof right;
+    const left_type = typeof left;
+    const right_type = typeof right;
     if (isSafeOperation(left_type, right_type,
         ["number", "boolean", "bigint", "symbol"])) {
         return left > right;
     } else {
-        let left_value = implicitToNumber(left);
-        let right_value = implicitToNumber(right);
+        const left_value = implicitToNumber(left);
+        const right_value = implicitToNumber(right);
         return left_value > right_value;
     }
 };
 SafeScript.ge = function(left, right) {
-    let left_type = typeof left;
-    let right_type = typeof right;
+    const left_type = typeof left;
+    const right_type = typeof right;
     if (isSafeOperation(left_type, right_type,
         ["number", "boolean", "bigint", "symbol"])) {
         return left >= right;
     } else {
-        let left_value = implicitToNumber(left);
-        let right_value = implicitToNumber(right);
+        const left_value = implicitToNumber(left);
+        const right_value = implicitToNumber(right);
         return left_value >= right_value;
     }
 };
 SafeScript.lt = function(left, right) {
-    let left_type = typeof left;
-    let right_type = typeof right;
+    const left_type = typeof left;
+    const right_type = typeof right;
     if (isSafeOperation(left_type, right_type,
         ["number", "boolean", "bigint", "symbol"])) {
         return left < right;
     } else {
-        let left_value = implicitToNumber(left);
-        let right_value = implicitToNumber(right);
+        const left_value = implicitToNumber(left);
+        const right_value = implicitToNumber(right);
         return left_value < right_value;
     }
 };
 SafeScript.le = function(left, right) {
-    let left_type = typeof left;
-    let right_type = typeof right;
+    const left_type = typeof left;
+    const right_type = typeof right;
     if (isSafeOperation(left_type, right_type,
         ["number", "boolean", "bigint", "symbol"])) {
         return left <= right;
     } else {
-        let left_value = implicitToNumber(left);
-        let right_value = implicitToNumber(right);
+        const left_value = implicitToNumber(left);
+        const right_value = implicitToNumber(right);
         return left_value <= right_value;
     }
 };
 SafeScript.and = function(left, right) {
-    let left_type = typeof left;
-    let right_type = typeof right;
+    const left_type = typeof left;
+    const right_type = typeof right;
     if (isSafeOperation(left_type, right_type,
         ["number", "boolean", "bigint", "symbol"])) {
         return left & right;
     } else {
-        let left_value = implicitToNumber(left);
-        let right_value = implicitToNumber(right);
+        const left_value = implicitToNumber(left);
+        const right_value = implicitToNumber(right);
         return left_value & right_value;
     }
 };
 SafeScript.or = function(left, right) {
-    let left_type = typeof left;
-    let right_type = typeof right;
+    const left_type = typeof left;
+    const right_type = typeof right;
     if (isSafeOperation(left_type, right_type,
         ["number", "boolean", "bigint", "symbol"])) {
         return left | right;
     } else {
-        let left_value = implicitToNumber(left);
-        let right_value = implicitToNumber(right);
+        const left_value = implicitToNumber(left);
+        const right_value = implicitToNumber(right);
         return left_value | right_value;
     }
 };
 SafeScript.xor = function(left, right) {
-    let left_type = typeof left;
-    let right_type = typeof right;
+    const left_type = typeof left;
+    const right_type = typeof right;
     if (isSafeOperation(left_type, right_type,
         ["number", "boolean", "bigint", "symbol"])) {
         return left ^ right;
     } else {
-        let left_value = implicitToNumber(left);
-        let right_value = implicitToNumber(right);
+        const left_value = implicitToNumber(left);
+        const right_value = implicitToNumber(right);
         return left_value ^ right_value;
     }
 };
 SafeScript.rshfit = function(left, right) {
-    let left_type = typeof left;
-    let right_type = typeof right;
+    const left_type = typeof left;
+    const right_type = typeof right;
     if (isSafeOperation(left_type, right_type,
         ["number", "boolean", "bigint", "symbol"])) {
         return left >> right;
     } else {
-        let left_value = implicitToNumber(left);
-        let right_value = implicitToNumber(right);
+        const left_value = implicitToNumber(left);
+        const right_value = implicitToNumber(right);
         return left_value >> right_value;
     }
 };
 SafeScript.arshift = function(left, right) {
-    let left_type = typeof left;
-    let right_type = typeof right;
+    const left_type = typeof left;
+    const right_type = typeof right;
     if (isSafeOperation(left_type, right_type,
         ["number", "boolean", "bigint", "symbol"])) {
         return left >>> right;
     } else {
-        let left_value = implicitToNumber(left);
-        let right_value = implicitToNumber(right);
+        const left_value = implicitToNumber(left);
+        const right_value = implicitToNumber(right);
         return left_value >>> right_value;
     }
 };
 SafeScript.lshift = function(left, right) {
-    let left_type = typeof left;
-    let right_type = typeof right;
+    const left_type = typeof left;
+    const right_type = typeof right;
     if (isSafeOperation(left_type, right_type,
         ["number", "boolean", "bigint", "symbol"])) {
         return left << right;
     } else {
-        let left_value = implicitToNumber(left);
-        let right_value = implicitToNumber(right);
+        const left_value = implicitToNumber(left);
+        const right_value = implicitToNumber(right);
         return left_value << right_value;
     }
 };
 SafeScript.plus = function (val) {
-    let val_type = typeof val;
+    const val_type = typeof val;
     let val_num;
     if (val_type !== "string") {
         val_num = implicitToNumber(val);
     } else {
         val_num = Number(val);
     }
-    if (typeof val_num !== "number") {
-        throw new TypeError(`can't convert ${val_type} to number`);
-    }
     return val_num;
 };
 SafeScript.minus = function (val) {
-    let val_type = typeof val;
-    let val_num = implicitToNumber(val);
-    if (typeof val_num !== "number") {
-        throw new TypeError(`can't convert ${val_type} to number`);
-    }
+    const val_type = typeof val;
+    const val_num = implicitToNumber(val);
     return (-val_num);
 };
 SafeScript.bit_not = function (val) {
-    let val_type = typeof val;
-    let val_num = implicitToNumber(val);
-    if (typeof val_num !== "number") {
-        throw new TypeError(`can't convert ${val_type} to number`);
-    }
+    const val_type = typeof val;
+    const val_num = implicitToNumber(val);
     return (~val_num);
 };
 let suffix_value;
 SafeScript.inc = function (val) {
-    let val_num = implicitToNumber(val);
-    if (typeof val_num !== "number") {
-        let val_type = typeof val;
-        throw new TypeError(`can't convert ${val_type} to number`);
-    }
+    const val_num = implicitToNumber(val);
     suffix_value = val_num;
     return val_num + 1;
 };
 SafeScript.dec = function (val) {
-    let val_num = implicitToNumber(val);
-    if (typeof val_num !== "number") {
-        let val_type = typeof val;
-        throw new TypeError(`can't convert ${val_type} to number`);
-    }
+    const val_num = implicitToNumber(val);
     suffix_value = val_num;
     return val_num - 1;
 };
