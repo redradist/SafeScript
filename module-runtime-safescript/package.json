@@ -1,6 +1,6 @@
 {
   "name": "@redradist/module-runtime-safescript",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "ECMA module package for SafeScript runtime",
   "main": "src/index.js",
   "type": "module",
