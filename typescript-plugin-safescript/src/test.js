@@ -18,6 +18,6 @@ function something(num) {
     if (typeof num === "number") {
         return num + 88;
     }
-    // return num + 88;
+    return num + 88;
 }
 something(2);

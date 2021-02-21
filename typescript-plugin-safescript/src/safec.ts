@@ -164,20 +164,27 @@ function getSafeUpdateExpression(operator: string,
         case "--":   safeOperatorName = 'SafeScript.dec'; break;
     }
     if (safeOperatorName) {
-        if (prefix) {
-            return nodeFactory.createAssignment(
-                node,
-                nodeFactory.createParenthesizedExpression(
-                    nodeFactory.createCallExpression(nodeFactory.createIdentifier(safeOperatorName), [], [node]))
-            );
+        let typeName = getTypeName(node, typeChecker);
+
+        console.log(`typeName is ${typeName}`);
+        if (["boolean", "number", "bigint"].includes(typeName)) {
+            return null;
         } else {
-            return nodeFactory.createAssignment(
-                node,
-                nodeFactory.createParenthesizedExpression(
-                nodeFactory.createComma(
-                    nodeFactory.createCallExpression(nodeFactory.createIdentifier(safeOperatorName), [], [node]),
-                    nodeFactory.createCallExpression(nodeFactory.createIdentifier("SafeScript.suffix"), [], [])
-            )));
+            if (prefix) {
+                return nodeFactory.createAssignment(
+                    node,
+                    nodeFactory.createParenthesizedExpression(
+                        nodeFactory.createCallExpression(nodeFactory.createIdentifier(safeOperatorName), [], [node]))
+                );
+            } else {
+                return nodeFactory.createAssignment(
+                    node,
+                    nodeFactory.createParenthesizedExpression(
+                        nodeFactory.createComma(
+                            nodeFactory.createCallExpression(nodeFactory.createIdentifier(safeOperatorName), [], [node]),
+                            nodeFactory.createCallExpression(nodeFactory.createIdentifier("SafeScript.suffix"), [], [])
+                        )));
+            }
         }
     }
     return null;
@@ -201,18 +208,18 @@ class SafeScriptTransformer {
         this.typeChecker = undefined;
 
         const filename = src_file;
-        const program = ts.createProgram([filename], {
-            allowJs: true
-        });
+        const typesSafeScript = "./src/safescript";
+        const compileOptions: ts.CompilerOptions = {
+            allowJs: true,
+            types: [typesSafeScript]
+        };
+        const program = ts.createProgram([filename], compileOptions);
         const sourceFile = program.getSourceFile(filename);
         this.typeChecker = program.getTypeChecker();
 
         if (sourceFile) {
             const transformationResult = ts.transform(
-                sourceFile, [this.safeScriptTransformFactory()],
-                {
-                    preserveWhitespace: true
-                }
+                sourceFile, [this.safeScriptTransformFactory()], compileOptions
             );
             const transformedSourceFile = transformationResult.transformed[0];
             const printer = ts.createPrinter();
