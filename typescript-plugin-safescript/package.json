@@ -2,10 +2,10 @@
   "name": "typescript-plugin-safescript",
   "version": "0.1.0",
   "description": "",
-  "main": "index.js",
+  "main": "dist/safec.js",
   "scripts": {
     "prepare": "tsc",
-    "start": "npm run prepare && node ./dist/index.js ./src -d ./dist",
+    "start": "npm run prepare && node dist/safec.js ./src -d ./dist",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

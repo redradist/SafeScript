@@ -5,6 +5,8 @@ const num3224 = num000 - num0;
 const num63 = 55 + num3224;
 const num = 5 + num0;
 const num2 = (num + 1) + 8;
+let sadasd = 3;
+sadasd += "3";
 
 function something(num) {
     // return Number(num) + 88;
