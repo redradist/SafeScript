@@ -8,6 +8,9 @@ const num2 = (num + 1) + 8;
 let sadasd = 3;
 sadasd += "3";
 
+let asdas = 24256;
+let asdasfgsas = +asdas;
+
 function something(num) {
     // return Number(num) + 88;
     if (typeof num === "number") {

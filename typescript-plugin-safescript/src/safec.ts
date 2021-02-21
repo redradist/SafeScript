@@ -25,6 +25,25 @@ function isCompoundOperator(operator: string) {
     return ["+=", "-=", "*=", "/=", "%="].includes(operator);
 }
 
+function isUnaryOperator(operator: string) {
+    return ["+", "-", "~"].includes(operator);
+}
+
+function isUpdateOperator(operator: string) {
+    return ["++", "--"].includes(operator);
+}
+
+function operatorToString(kind: ts.SyntaxKind): string {
+    switch (kind) {
+        case ts.SyntaxKind.PlusPlusToken: return "++";
+        case ts.SyntaxKind.MinusMinusToken: return "--";
+        case ts.SyntaxKind.PlusToken: return "+";
+        case ts.SyntaxKind.MinusToken: return "-";
+        case ts.SyntaxKind.TildeToken: return "~";
+    }
+    return "";
+}
+
 function getSafeBinaryExpression(operator: string,
                                  left: ts.Expression,
                                  right: ts.Expression,
@@ -108,6 +127,31 @@ function getSafeAssignmentExpression(operator: string,
     return null;
 }
 
+function getSafeUnaryExpression(operator: string,
+                                node: ts.Expression,
+                                typeChecker: ts.TypeChecker,
+                                nodeFactory: ts.NodeFactory) {
+    let safeOperatorName: string | null = null;
+    switch (operator) {
+        case "+":   safeOperatorName = 'SafeScript.plus'; break;
+        case "-":   safeOperatorName = 'SafeScript.minus'; break;
+        case "~":   safeOperatorName = 'SafeScript.bit_not'; break;
+    }
+    if (safeOperatorName) {
+        let typeName = getTypeName(node, typeChecker);
+
+        if (["boolean", "number", "bigint"].includes(typeName)) {
+            return null;
+        } else {
+            return nodeFactory.createCallExpression(
+                nodeFactory.createIdentifier(safeOperatorName),
+                [],
+                [node]);
+        }
+    }
+    return null;
+}
+
 class SafeScriptTransformer {
     private isUpdated: boolean;
     private typeChecker?: ts.TypeChecker;
@@ -186,6 +230,23 @@ class SafeScriptTransformer {
                             transformer.isUpdated = true;
                             return safeBinaryExpression;
                         }
+                    }
+                } else if (ts.isPrefixUnaryExpression(node) ||
+                           ts.isPostfixUnaryExpression(node)) {
+                    let operator_string = operatorToString(node.operator);
+                    if (isUnaryOperator(operator_string)) {
+                        const safeUnaryExpression = getSafeUnaryExpression(
+                            operator_string,
+                            node.operand,
+                            transformer.typeChecker,
+                            context.factory);
+
+                        if (safeUnaryExpression) {
+                            transformer.isUpdated = true;
+                            return safeUnaryExpression;
+                        }
+                    } else if (isUpdateOperator(operator_string)) {
+
                     }
                 }
 
