@@ -1,5 +1,5 @@
 {
-  "name": "untitled",
+  "name": "babel-plugin-nodejs-example",
   "version": "1.0.0",
   "description": "",
   "type": "module",
@@ -15,10 +15,10 @@
   "devDependencies": {
     "@babel/cli": "^7.12.16",
     "@redradist/babel-plugin-safescript": "^0.2.0",
-    "@redradist/module-runtime-safescript": "^0.4.2",
+    "@redradist/module-runtime-safescript": "^0.6.0",
     "babel-preset-es2015": "^6.24.1"
   },
   "dependencies": {
-    "@redradist/module-runtime-safescript": "^0.4.2"
+    "@redradist/module-runtime-safescript": "^0.6.0"
   }
 }
