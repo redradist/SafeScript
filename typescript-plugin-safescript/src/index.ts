@@ -71,10 +71,6 @@ function getSafeBinaryExpression(operator: string,
         case ">>":  safeOperatorName = 'SafeScript.rshfit'; break;
         case ">>>": safeOperatorName = 'SafeScript.arshift'; break;
         case "<<":  safeOperatorName = 'SafeScript.lshift'; break;
-        case "+=":  {
-            console.log("+=");
-            break;
-        }
     }
     if (safeOperatorName) {
         let leftTypeName = getTypeName(left, typeChecker);
@@ -168,7 +164,6 @@ function getSafeUpdateExpression(operator: string,
     if (safeOperatorName) {
         let typeName = getTypeName(node, typeChecker);
 
-        console.log(`typeName is ${typeName}`);
         if (["boolean", "number", "bigint"].includes(typeName)) {
             return null;
         } else {
@@ -246,7 +241,6 @@ class SafeScriptTransformer {
                 }
                 if (ts.isBinaryExpression(node)) {
                     if (isCompoundOperator(node.operatorToken.getText())) {
-                        console.log("isCompoundOperator");
                         const safeAssignmentExpression = getSafeAssignmentExpression(
                             node.operatorToken.getText(),
                             node.left,
@@ -379,11 +373,12 @@ async function main() {
         let ext = fileExtension(file_name);
         return ext === "js";
     });
+    await fs.promises.stat(args.dist).catch(async reason => {
+        await fs.promises.mkdir(args.dist);
+    });
     const safeScriptTransformer = new SafeScriptTransformer();
     for (let file of filteredFiles) {
-        console.log(`file is ${file}`);
         let dist_file = file.replace(args.src, args.dist);
-        console.log(`dist_file is ${dist_file}`);
         await safeScriptTransformer.transform(file, dist_file);
         while (safeScriptTransformer.updated) {
             await safeScriptTransformer.transform(dist_file, dist_file);
