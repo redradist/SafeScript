@@ -3,6 +3,16 @@
 import * as ts from "typescript";
 import * as fs from "fs";
 import * as path from "path";
+import { encode } from '@vivaxy/vlq';
+
+interface SourceMap {
+    version: number,
+    file: string,
+    sourceRoot: string,
+    sources: string[],
+    names: string[],
+    mappings: string
+}
 
 function getTypeName(node: ts.Expression, typeChecker: ts.TypeChecker) {
     const type = typeChecker.getTypeAtLocation(node);
@@ -229,6 +239,135 @@ class SafeScriptTransformer {
         }
     }
 
+    async generateSourceMap(file: string, dist_file: string) {
+        const typesSafeScript = "./src/safescript";
+        const compileOptions: ts.CompilerOptions = {
+            allowJs: true,
+            types: [typesSafeScript]
+        };
+        let relativePath = path.relative(path.dirname(dist_file), file);
+        console.log(`relativePath is ${relativePath}`);
+        const sourceMap: SourceMap = {
+            version: 3,
+            // @ts-ignore
+            file: `${path.basename(dist_file)}`,
+            sourceRoot: "",
+            sources: [relativePath],
+            names: [],
+            mappings: ""
+        };
+
+        console.log(`file is ${file}`);
+        const origProgram = ts.createProgram([file], compileOptions);
+        const origSourceFile = origProgram.getSourceFile(file);
+
+        console.log(`dist_file is ${dist_file}`);
+        const distProgram = ts.createProgram([dist_file], compileOptions);
+        const distSourceFile = distProgram.getSourceFile(dist_file);
+
+        console.log(`origSourceFile is ${origSourceFile}`);
+        console.log(`distSourceFile is ${distSourceFile}`);
+        if (origSourceFile && distSourceFile) {
+            console.log(`if (origSourceFile && distSourceFile)`);
+            const genContext = {
+                line: 0,
+                lineItems: 0,
+                character: 0,
+                oldMapping: "",
+                fullStart: 0,
+                origPrevCharacter: 0,
+                compiledPrevCharacter: 0,
+                origPrevLine: 0
+            };
+            sourceMap.mappings = this.generateMappings(
+                genContext, origSourceFile, origSourceFile, distSourceFile
+            );
+        }
+        console.log(`mappings is ${sourceMap.mappings}`);
+
+        await createFileAsync(`${dist_file}.map`, JSON.stringify(sourceMap));
+        const data = await fs.promises.readFile(dist_file, { encoding: 'utf8' });
+        const newData = data + "\r\n" + `//# sourceMappingURL=${path.basename(dist_file)}.map`;
+        await fs.promises.writeFile(dist_file, newData, { encoding: 'utf8' });
+    }
+
+    findSimilarNode(start: number,
+                    searchNode: ts.Node,
+                    searchFile: ts.SourceFile,
+                    similarNode: ts.Node,
+                    similarFile: ts.SourceFile) {
+        const similarNodeText = similarNode.getText(similarFile);
+        if (similarNodeText === "") {
+            return undefined;
+        }
+        const nodeText = searchNode.getText(searchFile);
+        if (nodeText !== "" &&
+            searchNode.kind === similarNode.kind &&
+            searchNode.getStart(searchFile) >= start) {
+            return searchNode;
+        }
+
+        for (const child of searchNode.getChildren(searchFile)) {
+            const foundChild: any = this.findSimilarNode(start, child, searchFile, similarNode, similarFile);
+            if (foundChild) {
+                return foundChild;
+            }
+        }
+    }
+
+    isSafeScriptOperator(token: string): boolean {
+        return [ "+", "-", "*", "/", "%", "**", "==", "!=",
+                 ">", ">=", "<", "<=", "&", "|", "^", ">>",
+                 ">>>", "<<", "+=", "-=", "*=", "/=", "%=",
+                 "+", "-", "~", "++", "--"].includes(token);
+    }
+
+    generateMappings(genContext: any, originNode: ts.Node, originFile: ts.SourceFile, compiledFile: ts.SourceFile): string {
+        let result = "";
+
+        const originChildren = originNode.getChildren(originFile);
+        if (originNode.getText(originFile) === "return") {
+            console.log(`originNode.getText(originFile) === "return": ${originChildren.length}`);
+        }
+
+        if (originChildren.length > 0) {
+            for (let i = 0; i < originChildren.length; ++i) {
+                const originChild = originChildren[i];
+                result += this.generateMappings(
+                    genContext, originChild, originFile, compiledFile
+                );
+            }
+        } else {
+            if (!this.isSafeScriptOperator(originNode.getText(originFile))) {
+                const foundNode = this.findSimilarNode(genContext.fullStart, compiledFile, compiledFile, originNode, originFile);
+                if (foundNode) {
+                    const origPos = originFile.getLineAndCharacterOfPosition(originNode.getStart(originFile));
+                    const compiledPos = compiledFile.getLineAndCharacterOfPosition(foundNode.getStart(compiledFile));
+                    if (compiledPos.line > genContext.line) {
+                        result += ";".repeat(compiledPos.line - genContext.line);
+                        genContext.line = compiledPos.line;
+                        genContext.lineItems = 0;
+                        genContext.compiledPrevCharacter = 0;
+                        console.log("New Line");
+                    }
+                    if (genContext.lineItems > 0) {
+                        result += ",";
+                    }
+                    result += encode([compiledPos.character-genContext.compiledPrevCharacter, 0, origPos.line-genContext.origPrevLine, origPos.character-genContext.origPrevCharacter]);
+                    genContext.compiledPrevCharacter = compiledPos.character;
+                    genContext.origPrevCharacter = origPos.character;
+                    genContext.origPrevLine = origPos.line;
+                    genContext.lineItems += 1;
+                    genContext.fullStart = foundNode.getStart(compiledFile)+1;
+                }
+            } else {
+                console.log(`${originNode.getText(originFile)}`);
+            }
+        }
+
+        return result;
+    }
+
     private safeScriptTransformFactory() {
         let transformer = this;
         return (context: ts.TransformationContext) =>
@@ -310,7 +449,8 @@ function createFileAsync(file_name: string, text: string): Promise<any> {
 
 type SafeScriptArguments = {
     src: string,
-    dist: string
+    dist: string,
+    source_map: boolean
 };
 
 function getArguments(): SafeScriptArguments {
@@ -325,6 +465,11 @@ function getArguments(): SafeScriptArguments {
         dist_dir = src_dir;
     }
 
+    let source_map = false;
+    if (args[3] === "--src-map") {
+        source_map = Boolean(args[4]);
+    }
+
     src_dir = src_dir.replace(/^(\.\/)/,"");
     if (src_dir[src_dir.length-1] !== '/') {
         src_dir += '/';
@@ -336,7 +481,8 @@ function getArguments(): SafeScriptArguments {
 
     return {
         src: src_dir,
-        dist: dist_dir
+        dist: dist_dir,
+        source_map: source_map
     };
 }
 
@@ -382,6 +528,9 @@ async function main() {
         await safeScriptTransformer.transform(file, dist_file);
         while (safeScriptTransformer.updated) {
             await safeScriptTransformer.transform(dist_file, dist_file);
+        }
+        if (args.source_map) {
+            await safeScriptTransformer.generateSourceMap(file, dist_file);
         }
     }
 }
