@@ -457,17 +457,26 @@ function getArguments(): SafeScriptArguments {
     let args = process.argv.slice(2);
     console.log('args: ', args);
 
-    let src_dir = args[0];
+    let src_dir = './';
     let dist_dir;
-    if (args[1] === "-d") {
-        dist_dir = args[2];
-    } else {
-        dist_dir = src_dir;
-    }
-
     let source_map = false;
-    if (args[3] === "--src-map") {
-        source_map = Boolean(args[4]);
+    for (let i = 0; i < args.length; ++i) {
+        if (args[i] === "-d") {
+            if (i + 1 >= args.length) {
+                throw new Error(`Missed required path option after '-d'`);
+            }
+            dist_dir = args[++i];
+        } else if (args[i] === "--src-map") {
+            if (i + 1 >= args.length) {
+                throw new Error(`Missed required boolean option after '--src-map'`);
+            }
+            source_map = Boolean(args[++i]);
+        } else {
+            src_dir = args[i];
+        }
+    }
+    if (!dist_dir) {
+        dist_dir = src_dir;
     }
 
     src_dir = src_dir.replace(/^(\.\/)/,"");
