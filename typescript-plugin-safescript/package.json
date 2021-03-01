@@ -20,7 +20,7 @@
   },
   "scripts": {
     "prepare": "tsc",
-    "compiletest": "npm run prepare && node dist/index.js ./test -d ./dist --src-map true",
+    "compiletest": "npm run prepare && node dist/index.js ./test -d ./dist --src-map true --allow-ts true",
     "test": "npm run compiletest && node dist/test.js"
   },
   "devDependencies": {

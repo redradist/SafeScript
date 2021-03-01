@@ -14,7 +14,7 @@ interface SourceMap {
     mappings: string
 }
 
-function getTypeName(node: ts.Expression, typeChecker: ts.TypeChecker) {
+function getTypeName(node: ts.Node, typeChecker: ts.TypeChecker) {
     const type = typeChecker.getTypeAtLocation(node);
     let typeName = typeChecker.typeToString(type, node);
 
@@ -197,13 +197,71 @@ function getSafeUpdateExpression(operator: string,
     return null;
 }
 
+function getSafeCheckExpression(node: ts.FunctionDeclaration,
+                                typeChecker: ts.TypeChecker,
+                                nodeFactory: ts.NodeFactory) {
+    let checks: ts.Statement[] = [];
+    let activeSelfCheck = true;
+    let selfChecks: [string, string][] = [];
+    node.body?.statements.filter((value, index, array) => {
+        if (activeSelfCheck && ts.isIfStatement(value)) {
+            if (ts.isBinaryExpression(value.expression)) {
+                if (value.expression.operatorToken.getText() === "!==") {
+                    if (ts.isTypeOfExpression(value.expression.left)) {
+                        selfChecks.push([value.expression.left.getText(), value.expression.right.getText()]);
+                    } else if (ts.isTypeOfExpression(value.expression.right)) {
+                        selfChecks.push([value.expression.right.getText(), value.expression.left.getText()]);
+                    }
+                }
+            }
+        } else {
+            activeSelfCheck = false;
+        }
+    })
+    for (let param of node.parameters) {
+        let typeName = getTypeName(param, typeChecker);
+        if (['number', 'string', 'bigint', 'boolean'].includes(typeName)) {
+            const typeCheck: [string, string] = [`typeof ${param.name.getText()}`, `"${typeName}"`];
+            let isSelfCheck = false;
+            for (const selfCheck of selfChecks) {
+                if (selfCheck[0] === typeCheck[0] &&
+                    selfCheck[1] === typeCheck[1]) {
+                    isSelfCheck = true;
+                    break;
+                }
+            }
+            if (!isSelfCheck) {
+                checks.push(nodeFactory.createIfStatement(
+                    nodeFactory.createStrictInequality(
+                        nodeFactory.createTypeOfExpression(
+                            nodeFactory.createIdentifier(param.name.getText())
+                        ),
+                        nodeFactory.createStringLiteral(typeName)
+                    ),
+                    nodeFactory.createThrowStatement(
+                        nodeFactory.createNewExpression(
+                            nodeFactory.createIdentifier("TypeError"),
+                            undefined,
+                            [nodeFactory.createStringLiteral(
+                                `${param.name.getText()} is not typeof '${typeName}'`
+                            )]
+                        )
+                    )));
+            }
+        }
+    }
+    return checks;
+}
+
 class SafeScriptTransformer {
     private isUpdated: boolean;
     private typeChecker?: ts.TypeChecker;
+    private allow_ts?: boolean;
 
-    constructor() {
+    constructor(allow_ts?: boolean) {
         this.isUpdated = false;
         this.typeChecker = undefined;
+        this.allow_ts = allow_ts;
     }
 
     get updated() {
@@ -431,6 +489,16 @@ class SafeScriptTransformer {
                             return safeUpdateExpression;
                         }
                     }
+                } else if (transformer.allow_ts &&
+                           ts.isFunctionDeclaration(node)) {
+                    let checks: ts.Statement[] = getSafeCheckExpression(
+                        node,
+                        transformer.typeChecker,
+                        context.factory);
+                    if (node.body?.statements && checks.length > 0) {
+                        // @ts-ignore
+                        node.body?.statements = checks.concat(node.body?.statements);
+                    }
                 }
 
                 return node;
@@ -450,7 +518,8 @@ function createFileAsync(file_name: string, text: string): Promise<any> {
 type SafeScriptArguments = {
     src: string,
     dist: string,
-    source_map: boolean
+    source_map: boolean,
+    allow_ts: boolean,
 };
 
 function getArguments(): SafeScriptArguments {
@@ -460,6 +529,7 @@ function getArguments(): SafeScriptArguments {
     let src_dir = './';
     let dist_dir;
     let source_map = false;
+    let allow_ts = false;
     for (let i = 0; i < args.length; ++i) {
         if (args[i] === "-d") {
             if (i + 1 >= args.length) {
@@ -471,6 +541,11 @@ function getArguments(): SafeScriptArguments {
                 throw new Error(`Missed required boolean option after '--src-map'`);
             }
             source_map = Boolean(args[++i]);
+        } else if (args[i] === "--allow-ts") {
+            if (i + 1 >= args.length) {
+                throw new Error(`Missed required boolean option after '--allow-ts'`);
+            }
+            allow_ts = Boolean(args[++i]);
         } else {
             src_dir = args[i];
         }
@@ -491,7 +566,8 @@ function getArguments(): SafeScriptArguments {
     return {
         src: src_dir,
         dist: dist_dir,
-        source_map: source_map
+        source_map: source_map,
+        allow_ts: allow_ts
     };
 }
 
@@ -526,12 +602,15 @@ async function main() {
     const srcFiles = await getSourceFiles(args.src);
     const filteredFiles = srcFiles.filter(file_name => {
         let ext = fileExtension(file_name);
+        if (args.allow_ts) {
+            return ext === "js" || ext === "ts";
+        }
         return ext === "js";
     });
     await fs.promises.stat(args.dist).catch(async reason => {
         await fs.promises.mkdir(args.dist);
     });
-    const safeScriptTransformer = new SafeScriptTransformer();
+    const safeScriptTransformer = new SafeScriptTransformer(args.allow_ts);
     for (let file of filteredFiles) {
         let dist_file = file.replace(args.src, args.dist);
         await safeScriptTransformer.transform(file, dist_file);

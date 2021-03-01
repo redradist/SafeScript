@@ -16,10 +16,12 @@ let numstr2 = +str2;
 
 ++numstr2;
 
+/**
+ * Do something.
+ *
+ * @param {number} num - Number to do something
+ * */
 function something(num) {
-    if (typeof num !== "number") {
-        throw new TypeError();
-    }
     return num + 88;
 }
 something(2);
