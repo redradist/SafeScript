@@ -14,6 +14,17 @@ interface SourceMap {
     mappings: string
 }
 
+interface SourceMapContext {
+    line: number,
+    lineItems: number,
+    character: number,
+    fullStart: number,
+    origPrevCharacter: number,
+    compiledPrevCharacter: number,
+    origPrevLine: number,
+    generatedNodeIfs: [ts.Node, number][]
+}
+
 function getTypeName(node: ts.Node, typeChecker: ts.TypeChecker) {
     const type = typeChecker.getTypeAtLocation(node);
     let typeName = typeChecker.typeToString(type, node);
@@ -121,7 +132,7 @@ function getSafeAssignmentExpression(operator: string,
         if (leftTypeName === "string" && rightTypeName === "string") {
             return null;
         } else if (["boolean", "number", "bigint", "symbol"].includes(leftTypeName) &&
-            ["boolean", "number", "bigint", "symbol"].includes(rightTypeName)) {
+                   ["boolean", "number", "bigint", "symbol"].includes(rightTypeName)) {
             return null;
         } else {
             return nodeFactory.createAssignment(
@@ -217,10 +228,10 @@ function getSafeCheckExpression(node: ts.FunctionDeclaration,
         } else {
             activeSelfCheck = false;
         }
-    })
+    });
     for (let param of node.parameters) {
         let typeName = getTypeName(param, typeChecker);
-        if (['number', 'string', 'bigint', 'boolean'].includes(typeName)) {
+        if (['number', 'string', 'bigint', 'boolean', 'symbol'].includes(typeName)) {
             const typeCheck: [string, string] = [`typeof ${param.name.getText()}`, `"${typeName}"`];
             let isSelfCheck = false;
             for (const selfCheck of selfChecks) {
@@ -304,7 +315,6 @@ class SafeScriptTransformer {
             types: [typesSafeScript]
         };
         let relativePath = path.relative(path.dirname(dist_file), file);
-        console.log(`relativePath is ${relativePath}`);
         const sourceMap: SourceMap = {
             version: 3,
             // @ts-ignore
@@ -315,33 +325,28 @@ class SafeScriptTransformer {
             mappings: ""
         };
 
-        console.log(`file is ${file}`);
         const origProgram = ts.createProgram([file], compileOptions);
         const origSourceFile = origProgram.getSourceFile(file);
 
-        console.log(`dist_file is ${dist_file}`);
         const distProgram = ts.createProgram([dist_file], compileOptions);
         const distSourceFile = distProgram.getSourceFile(dist_file);
 
-        console.log(`origSourceFile is ${origSourceFile}`);
-        console.log(`distSourceFile is ${distSourceFile}`);
         if (origSourceFile && distSourceFile) {
-            console.log(`if (origSourceFile && distSourceFile)`);
-            const genContext = {
+            const genContext: SourceMapContext = {
                 line: 0,
                 lineItems: 0,
                 character: 0,
-                oldMapping: "",
                 fullStart: 0,
                 origPrevCharacter: 0,
                 compiledPrevCharacter: 0,
-                origPrevLine: 0
+                origPrevLine: 0,
+                generatedNodeIfs: []
             };
             sourceMap.mappings = this.generateMappings(
                 genContext, origSourceFile, origSourceFile, distSourceFile
             );
         }
-        console.log(`mappings is ${sourceMap.mappings}`);
+        console.log(`file is ${file}, mappings is ${sourceMap.mappings}`);
 
         await createFileAsync(`${dist_file}.map`, JSON.stringify(sourceMap));
         const data = await fs.promises.readFile(dist_file, { encoding: 'utf8' });
@@ -349,24 +354,42 @@ class SafeScriptTransformer {
         await fs.promises.writeFile(dist_file, newData, { encoding: 'utf8' });
     }
 
-    findSimilarNode(start: number,
+    findSimilarNode(genContext: SourceMapContext,
                     searchNode: ts.Node,
                     searchFile: ts.SourceFile,
                     similarNode: ts.Node,
-                    similarFile: ts.SourceFile) {
-        const similarNodeText = similarNode.getText(similarFile);
-        if (similarNodeText === "") {
+                    similarFile: ts.SourceFile,
+                    removeIfs: number = 0) {
+        if (ts.isJSDocCommentContainingNode(similarNode)) {
             return undefined;
         }
-        const nodeText = searchNode.getText(searchFile);
-        if (nodeText !== "" &&
+        if (similarNode.getText(similarFile) === "") {
+            return undefined;
+        }
+        if (searchNode.getText(searchFile) !== "" &&
             searchNode.kind === similarNode.kind &&
-            searchNode.getStart(searchFile) >= start) {
+            searchNode.getStart(searchFile) >= genContext.fullStart) {
             return searchNode;
         }
 
-        for (const child of searchNode.getChildren(searchFile)) {
-            const foundChild: any = this.findSimilarNode(start, child, searchFile, similarNode, similarFile);
+        if (ts.isFunctionDeclaration(searchNode)) {
+            for (const nodeIfs of genContext.generatedNodeIfs) {
+                if (nodeIfs[0] === searchNode) {
+                    removeIfs = nodeIfs[1];
+                }
+            }
+        }
+
+        const origChildren = searchNode.getChildren(searchFile);
+        const filteredChildren = origChildren.filter(value => {
+            if (removeIfs > 0 && ts.isIfStatement(value)) {
+                removeIfs -= 1;
+                return false;
+            }
+            return true;
+        });
+        for (const child of filteredChildren) {
+            const foundChild: any = this.findSimilarNode(genContext, child, searchFile, similarNode, similarFile, removeIfs);
             if (foundChild) {
                 return foundChild;
             }
@@ -380,46 +403,68 @@ class SafeScriptTransformer {
                  "+", "-", "~", "++", "--"].includes(token);
     }
 
-    generateMappings(genContext: any, originNode: ts.Node, originFile: ts.SourceFile, compiledFile: ts.SourceFile): string {
+    generateMappings(genContext: SourceMapContext, originNode: ts.Node, originFile: ts.SourceFile, compiledFile: ts.SourceFile): string {
         let result = "";
 
-        const originChildren = originNode.getChildren(originFile);
-        if (originNode.getText(originFile) === "return") {
-            console.log(`originNode.getText(originFile) === "return": ${originChildren.length}`);
+        if (ts.isJSDocCommentContainingNode(originNode)) {
+            return result;
         }
 
+        const originChildren = originNode.getChildren(originFile);
+        if (ts.isFunctionDeclaration(originNode) ||
+            (originChildren.length === 0 &&
+             !this.isSafeScriptOperator(originNode.getText(originFile)))) {
+            const foundNode = this.findSimilarNode(genContext, compiledFile, compiledFile, originNode, originFile);
+            if (foundNode) {
+                const origPos = originFile.getLineAndCharacterOfPosition(originNode.getStart(originFile));
+                const compiledPos = compiledFile.getLineAndCharacterOfPosition(foundNode.getStart(compiledFile));
+                if (compiledPos.line > genContext.line) {
+                    result += ";".repeat(compiledPos.line - genContext.line);
+                    genContext.line = compiledPos.line;
+                    genContext.lineItems = 0;
+                    genContext.compiledPrevCharacter = 0;
+                }
+                if (genContext.lineItems > 0) {
+                    result += ",";
+                }
+                result += encode([compiledPos.character-genContext.compiledPrevCharacter, 0, origPos.line-genContext.origPrevLine, origPos.character-genContext.origPrevCharacter]);
+                genContext.compiledPrevCharacter = compiledPos.character;
+                genContext.origPrevCharacter = origPos.character;
+                genContext.origPrevLine = origPos.line;
+                genContext.lineItems += 1;
+                genContext.fullStart = foundNode.getStart(compiledFile)+1;
+
+                if (ts.isFunctionDeclaration(originNode) &&
+                    ts.isFunctionDeclaration(foundNode)) {
+                    let originIfs = 0;
+                    if (originNode.body?.statements) {
+                        for (const statement of originNode.body?.statements) {
+                            if (ts.isIfStatement(statement)) {
+                                originIfs += 1;
+                            }
+                        }
+                    }
+                    if (foundNode.body?.statements) {
+                        let compiledIfs = 0;
+                        for (const statement of foundNode.body?.statements) {
+                            if (ts.isIfStatement(statement)) {
+                                compiledIfs += 1;
+                            }
+                        }
+                        let reduceIfs = compiledIfs - originIfs;
+                        if (reduceIfs > 0) {
+                            genContext.generatedNodeIfs.push([foundNode, reduceIfs]);
+                        }
+                    }
+                }
+            }
+        }
         if (originChildren.length > 0) {
             for (let i = 0; i < originChildren.length; ++i) {
                 const originChild = originChildren[i];
                 result += this.generateMappings(
                     genContext, originChild, originFile, compiledFile
                 );
-            }
-        } else {
-            if (!this.isSafeScriptOperator(originNode.getText(originFile))) {
-                const foundNode = this.findSimilarNode(genContext.fullStart, compiledFile, compiledFile, originNode, originFile);
-                if (foundNode) {
-                    const origPos = originFile.getLineAndCharacterOfPosition(originNode.getStart(originFile));
-                    const compiledPos = compiledFile.getLineAndCharacterOfPosition(foundNode.getStart(compiledFile));
-                    if (compiledPos.line > genContext.line) {
-                        result += ";".repeat(compiledPos.line - genContext.line);
-                        genContext.line = compiledPos.line;
-                        genContext.lineItems = 0;
-                        genContext.compiledPrevCharacter = 0;
-                        console.log("New Line");
-                    }
-                    if (genContext.lineItems > 0) {
-                        result += ",";
-                    }
-                    result += encode([compiledPos.character-genContext.compiledPrevCharacter, 0, origPos.line-genContext.origPrevLine, origPos.character-genContext.origPrevCharacter]);
-                    genContext.compiledPrevCharacter = compiledPos.character;
-                    genContext.origPrevCharacter = origPos.character;
-                    genContext.origPrevLine = origPos.line;
-                    genContext.lineItems += 1;
-                    genContext.fullStart = foundNode.getStart(compiledFile)+1;
-                }
-            } else {
-                console.log(`${originNode.getText(originFile)}`);
             }
         }
 
@@ -542,10 +587,7 @@ function getArguments(): SafeScriptArguments {
             }
             source_map = Boolean(args[++i]);
         } else if (args[i] === "--allow-ts") {
-            if (i + 1 >= args.length) {
-                throw new Error(`Missed required boolean option after '--allow-ts'`);
-            }
-            allow_ts = Boolean(args[++i]);
+            allow_ts = true;
         } else {
             src_dir = args[i];
         }
@@ -599,6 +641,8 @@ async function main() {
     let args = getArguments();
     console.log(`args.src is ${args.src}`);
     console.log(`args.dist is ${args.dist}`);
+    console.log(`args.source_map is ${args.source_map}`);
+    console.log(`args.allow_ts is ${args.allow_ts}`);
     const srcFiles = await getSourceFiles(args.src);
     const filteredFiles = srcFiles.filter(file_name => {
         let ext = fileExtension(file_name);

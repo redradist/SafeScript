@@ -20,8 +20,13 @@ let numstr2 = +str2;
  * Do something.
  *
  * @param {number} num - Number to do something
+ * @param {symbol} sym
  * */
-function something(num) {
+function something(num, sym) {
+    if (typeof num !== "number") {
+        throw new TypeError("num is not typeof 'number'");
+    }
+    console.log(`num is ${num}`);
     return num + 88;
 }
 something(2);
