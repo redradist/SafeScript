@@ -3,7 +3,7 @@
 import * as ts from "typescript";
 import * as fs from "fs";
 import * as path from "path";
-import { encode } from '@vivaxy/vlq';
+import { encode, decode } from '@vivaxy/vlq';
 
 interface SourceMap {
     version: number,
@@ -317,7 +317,6 @@ class SafeScriptTransformer {
         let relativePath = path.relative(path.dirname(dist_file), file);
         const sourceMap: SourceMap = {
             version: 3,
-            // @ts-ignore
             file: `${path.basename(dist_file)}`,
             sourceRoot: "",
             sources: [relativePath],
@@ -349,9 +348,158 @@ class SafeScriptTransformer {
         console.log(`file is ${file}, mappings is ${sourceMap.mappings}`);
 
         await createFileAsync(`${dist_file}.map`, JSON.stringify(sourceMap));
-        const data = await fs.promises.readFile(dist_file, { encoding: 'utf8' });
-        const newData = data + "\r\n" + `//# sourceMappingURL=${path.basename(dist_file)}.map`;
-        await fs.promises.writeFile(dist_file, newData, { encoding: 'utf8' });
+    }
+
+    getRealIndexMapping(sourceMap: SourceMap) {
+        let mappings = [];
+
+        const mappingsLines = sourceMap.mappings.split(';');
+        for (const line of mappingsLines) {
+            const nums = [];
+            if (line.length > 0) {
+                const encs = line.split(',');
+                for (const enc of encs) {
+                    const dec = decode(enc);
+                    nums.push(dec);
+                }
+            }
+            mappings.push(nums);
+        }
+        let prevLine = 0;
+        let prevColumn = 0;
+        for (const map of mappings) {
+            for (const it of map) {
+                prevLine += it[2];
+                prevColumn += it[3];
+                it[2] = prevLine;
+                it[3] = prevColumn;
+            }
+        }
+        return mappings;
+    }
+
+    mergeSourceMaps(oldSourceMap: SourceMap, newSourceMap: SourceMap): SourceMap {
+        let mergedSourceMap: SourceMap = {
+            version: 3,
+            file: "",
+            sourceRoot: "",
+            sources: [],
+            names: [],
+            mappings: ""
+        };
+        mergedSourceMap.file = oldSourceMap.file;
+        mergedSourceMap.sourceRoot = oldSourceMap.sourceRoot;
+        mergedSourceMap.sources = oldSourceMap.sources;
+        mergedSourceMap.names = newSourceMap.names;
+
+        let oldMappings = this.getRealIndexMapping(oldSourceMap);
+        let newMappings = this.getRealIndexMapping(newSourceMap);
+
+        for (const newLine of newMappings) {
+            const toRemove = [];
+            for (const column of newLine) {
+                const origLine = column[2];
+                const origColumn = column[3];
+
+                const oldMap = oldMappings[origLine];
+                let mapColumn;
+                for (const oldColumn of oldMap) {
+                    if (oldColumn[3] <= origColumn) {
+                        mapColumn = oldColumn;
+                    }
+                }
+                if (!mapColumn) {
+                    toRemove.push(column);
+                } else {
+                    column[2] = mapColumn[2];
+                    column[3] = mapColumn[3];
+                }
+            }
+            for (const remove of toRemove) {
+                const idx = newLine.indexOf(remove);
+                if (idx > -1) {
+                    newLine.splice(idx, 1);
+                }
+            }
+        }
+
+        let newStrMapping = "";
+        let prevLine = 0;
+        let prevColumn = 0;
+        let idx = 0;
+        for (const line of newMappings) {
+            if (line.length !== 0) {
+                let colIdx = 0;
+                for (const column of line) {
+                    newStrMapping += encode([
+                        column[0],
+                        0,
+                        column[2]-prevLine,
+                        column[3]-prevColumn]);
+                    prevLine = column[2];
+                    prevColumn = column[3];
+                    colIdx += 1;
+                    if (colIdx < line.length) {
+                        newStrMapping += ",";
+                    }
+                }
+            }
+            idx += 1;
+            if (idx < newMappings.length) {
+                newStrMapping += ";";
+            }
+        }
+
+        mergedSourceMap.mappings = newStrMapping;
+
+        return mergedSourceMap;
+    }
+
+    async compileTs(dist_file: string, source_map: boolean) {
+        const typesSafeScript = "./src/safescript";
+        let compileOptions: ts.CompilerOptions;
+        const configFileName = ts.findConfigFile(
+            "./",
+            ts.sys.fileExists,
+            "tsconfig.json"
+        );
+        if (configFileName) {
+            const configFile = ts.readConfigFile(configFileName, ts.sys.readFile);
+            compileOptions = ts.parseJsonConfigFileContent(
+                configFile.config,
+                ts.sys,
+                "./"
+            ).options;
+            if (compileOptions.types) {
+                compileOptions.types.push(typesSafeScript);
+            } else {
+                compileOptions.types = [typesSafeScript];
+            }
+            if (source_map) {
+                compileOptions.sourceMap = source_map;
+            }
+        } else {
+            compileOptions = {
+                allowJs: true,
+                types: [typesSafeScript],
+                sourceMap: source_map
+            };
+        }
+
+        const distProgram = ts.createProgram([dist_file], compileOptions);
+        distProgram.emit();
+        const dist_js_file = dist_file.replace(new RegExp('ts$'), 'js');
+        const dist_file_map = dist_file + ".map";
+        const dist_js_file_map = dist_js_file + ".map";
+
+        let dist_file_source_map = await fs.promises.readFile(dist_file_map);
+        let dist_source_map: SourceMap = JSON.parse(dist_file_source_map.toString());
+
+        let dist_js_file_source_map = await fs.promises.readFile(dist_js_file_map);
+        let dist_js_source_map: SourceMap = JSON.parse(dist_js_file_source_map.toString());
+
+        const newSourceMap = this.mergeSourceMaps(dist_source_map, dist_js_source_map);
+        await createFileAsync(dist_js_file_map, JSON.stringify(newSourceMap));
     }
 
     findSimilarNode(genContext: SourceMapContext,
@@ -663,6 +811,9 @@ async function main() {
         }
         if (args.source_map) {
             await safeScriptTransformer.generateSourceMap(file, dist_file);
+        }
+        if (fileExtension(dist_file) === "ts") {
+            await safeScriptTransformer.compileTs(dist_file, args.source_map);
         }
     }
 }

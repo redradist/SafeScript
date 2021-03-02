@@ -13,7 +13,7 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "typescript-plugin-safescript": "^0.3.0"
+    "typescript-plugin-safescript": "^0.4.0"
   },
   "dependencies": {
     "@redradist/module-runtime-safescript": "^0.6.0"

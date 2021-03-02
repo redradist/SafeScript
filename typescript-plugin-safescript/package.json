@@ -1,6 +1,6 @@
 {
   "name": "typescript-plugin-safescript",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "This TypeScript Plugin allow to transform JavaScript Runtime to apply type checking at Runtime for performing implicit coercion",
   "author": {
     "name": "redradist",
@@ -21,7 +21,8 @@
   "scripts": {
     "prepare": "tsc",
     "compiletest": "npm run prepare && node dist/index.js ./test -d ./dist --src-map true --allow-ts",
-    "test": "npm run compiletest && node dist/test.js"
+    "test": "npm run compiletest && node dist/test.js",
+    "test2": "npm run compiletest && node dist/test_ts.js"
   },
   "devDependencies": {
     "@types/node": "^14.14.31"
