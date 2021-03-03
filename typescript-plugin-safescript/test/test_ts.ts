@@ -9,6 +9,7 @@ class MyCl {
             console.log(`k is ${k}`);
         };
         lambda(7);
+        ((m: string) => console.log(`Anonymous arrow function`))("");
         // @ts-ignore
         return n + 1;
     }

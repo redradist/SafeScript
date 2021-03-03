@@ -1,6 +1,6 @@
 {
   "name": "typescript-plugin-safescript",
-  "version": "0.4.3",
+  "version": "0.5.0",
   "description": "This TypeScript Plugin allow to transform JavaScript Runtime to apply type checking at Runtime for performing implicit coercion",
   "author": {
     "name": "redradist",
@@ -11,6 +11,7 @@
   "keywords": [
     "SafeScript",
     "JavaScript",
+    "TypeScript",
     "compiler",
     "language"
   ],

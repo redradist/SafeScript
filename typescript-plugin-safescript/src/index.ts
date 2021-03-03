@@ -25,7 +25,7 @@ interface SourceMapContext {
     generatedNodeIfs: [ts.Node, number][]
 }
 
-type FunctionLike = ts.FunctionDeclaration | ts.MethodDeclaration | ts.ConstructorDeclaration;
+type FunctionLike = ts.FunctionDeclaration | ts.MethodDeclaration | ts.ConstructorDeclaration | ts.ArrowFunction;
 
 function getTypeName(node: ts.Node, typeChecker: ts.TypeChecker) {
     const type = typeChecker.getTypeAtLocation(node);
@@ -221,23 +221,26 @@ function getSafeCheckExpression(node: FunctionLike,
                                 typeChecker: ts.TypeChecker,
                                 nodeFactory: ts.NodeFactory) {
     let checks: ts.Statement[] = [];
-    let activeSelfCheck = true;
     let selfChecks: [string, string][] = [];
-    node.body?.statements.filter((value, index, array) => {
-        if (activeSelfCheck && ts.isIfStatement(value)) {
-            if (ts.isBinaryExpression(value.expression)) {
-                if (value.expression.operatorToken.getText() === "!==") {
-                    if (ts.isTypeOfExpression(value.expression.left)) {
-                        selfChecks.push([value.expression.left.getText(), value.expression.right.getText()]);
-                    } else if (ts.isTypeOfExpression(value.expression.right)) {
-                        selfChecks.push([value.expression.right.getText(), value.expression.left.getText()]);
+    if (node.body && 'statements' in node.body) {
+        let activeSelfCheck = true;
+        node.body.statements.filter((value, index, array) => {
+            if (activeSelfCheck && ts.isIfStatement(value)) {
+                if (ts.isBinaryExpression(value.expression)) {
+                    if (value.expression.operatorToken.getText() === "!==") {
+                        if (ts.isTypeOfExpression(value.expression.left)) {
+                            selfChecks.push([value.expression.left.getText(), value.expression.right.getText()]);
+                        } else if (ts.isTypeOfExpression(value.expression.right)) {
+                            selfChecks.push([value.expression.right.getText(), value.expression.left.getText()]);
+                        }
                     }
                 }
+            } else {
+                activeSelfCheck = false;
             }
-        } else {
-            activeSelfCheck = false;
-        }
-    });
+        });
+    }
+
     for (let param of node.parameters) {
         let typeName = getTypeName(param, typeChecker);
         if (['number', 'string', 'bigint', 'boolean', 'symbol'].includes(typeName)) {
@@ -665,16 +668,16 @@ class SafeScriptTransformer {
                     isFunctionLike(foundNode) &&
                     originNode.kind === foundNode.kind) {
                     let originIfs = 0;
-                    if (originNode.body?.statements) {
-                        for (const statement of originNode.body?.statements) {
+                    if (originNode.body && 'statements' in originNode.body) {
+                        for (const statement of originNode.body.statements) {
                             if (ts.isIfStatement(statement)) {
                                 originIfs += 1;
                             }
                         }
                     }
-                    if (foundNode.body?.statements) {
+                    if (foundNode.body && 'statements' in foundNode.body) {
                         let compiledIfs = 0;
-                        for (const statement of foundNode.body?.statements) {
+                        for (const statement of foundNode.body.statements) {
                             if (ts.isIfStatement(statement)) {
                                 compiledIfs += 1;
                             }
@@ -762,15 +765,20 @@ class SafeScriptTransformer {
                             return safeUpdateExpression;
                         }
                     }
-                } else if (transformer.allow_ts &&
-                           isFunctionLike(node)) {
+                } else if (isFunctionLike(node)) {
                     let checks: ts.Statement[] = getSafeCheckExpression(
                         node,
                         transformer.typeChecker,
                         context.factory);
-                    if (node.body?.statements && checks.length > 0) {
-                        // @ts-ignore
-                        node.body?.statements = checks.concat(node.body?.statements);
+                    if (node.body && checks.length > 0) {
+                        if (!('statements' in node.body)) {
+                            const expr = node.body;
+                            // @ts-ignore
+                            node.body = context.factory.createBlock(checks.concat(expr), true)
+                        } else {
+                            // @ts-ignore
+                            node.body.statements = checks.concat(node.body.statements);
+                        }
                     }
                 }
 
