@@ -301,7 +301,7 @@ class SafeScriptTransformer {
         this.typeChecker = undefined;
 
         const filename = src_file;
-        const typesSafeScript = "./src/safescript";
+        const typesSafeScript = `${__dirname}/../src/safescript`;
         const compileOptions: ts.CompilerOptions = {
             allowJs: true,
             types: [typesSafeScript]
@@ -326,7 +326,7 @@ class SafeScriptTransformer {
     }
 
     async generateSourceMap(file: string, dist_file: string) {
-        const typesSafeScript = "./src/safescript";
+        const typesSafeScript = `${__dirname}/../src/safescript`;
         const compileOptions: ts.CompilerOptions = {
             allowJs: true,
             types: [typesSafeScript]
@@ -362,7 +362,6 @@ class SafeScriptTransformer {
                 genContext, origSourceFile, origSourceFile, distSourceFile
             );
         }
-        console.log(`file is ${file}, mappings is ${sourceMap.mappings}`);
 
         await createFileAsync(`${dist_file}.map`, JSON.stringify(sourceMap));
         if (fileExtension(dist_file) !== 'ts') {
@@ -478,7 +477,7 @@ class SafeScriptTransformer {
     }
 
     async compileTs(src_file: string, dist_file: string, src: string, dist: string, source_map: boolean) {
-        const typesSafeScript = "./src/safescript";
+        const typesSafeScript = `${__dirname}/../src/safescript`;
         let compileOptions: ts.CompilerOptions;
         const configFileName = ts.findConfigFile(
             "./",
