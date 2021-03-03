@@ -25,6 +25,8 @@ interface SourceMapContext {
     generatedNodeIfs: [ts.Node, number][]
 }
 
+type FunctionLike = ts.FunctionDeclaration | ts.MethodDeclaration | ts.ConstructorDeclaration;
+
 function getTypeName(node: ts.Node, typeChecker: ts.TypeChecker) {
     const type = typeChecker.getTypeAtLocation(node);
     let typeName = typeChecker.typeToString(type, node);
@@ -54,6 +56,12 @@ function isUnaryOperator(operator: string) {
 
 function isUpdateOperator(operator: string) {
     return ["++", "--"].includes(operator);
+}
+
+function isFunctionLike(node: ts.Node): node is FunctionLike {
+    return ts.isFunctionDeclaration(node) ||
+           ts.isMethodDeclaration(node) ||
+           ts.isConstructorDeclaration(node);
 }
 
 function operatorToString(kind: ts.SyntaxKind): string {
@@ -208,7 +216,7 @@ function getSafeUpdateExpression(operator: string,
     return null;
 }
 
-function getSafeCheckExpression(node: ts.FunctionDeclaration,
+function getSafeCheckExpression(node: FunctionLike,
                                 typeChecker: ts.TypeChecker,
                                 nodeFactory: ts.NodeFactory) {
     let checks: ts.Statement[] = [];
@@ -268,6 +276,11 @@ class SafeScriptTransformer {
     private isUpdated: boolean;
     private typeChecker?: ts.TypeChecker;
     private allow_ts?: boolean;
+    private errors: number = 0;
+
+    public get hasErrors() {
+        return this.errors > 0;
+    }
 
     constructor(allow_ts?: boolean) {
         this.isUpdated = false;
@@ -348,6 +361,11 @@ class SafeScriptTransformer {
         console.log(`file is ${file}, mappings is ${sourceMap.mappings}`);
 
         await createFileAsync(`${dist_file}.map`, JSON.stringify(sourceMap));
+        if (fileExtension(dist_file) !== 'ts') {
+            const data = await fs.promises.readFile(dist_file, { encoding: 'utf8' });
+            const newData = data + "\r\n" + `//# sourceMappingURL=${path.basename(dist_file)}.map`;
+            await fs.promises.writeFile(dist_file, newData, { encoding: 'utf8' });
+        }
     }
 
     getRealIndexMapping(sourceMap: SourceMap) {
@@ -455,7 +473,7 @@ class SafeScriptTransformer {
         return mergedSourceMap;
     }
 
-    async compileTs(dist_file: string, source_map: boolean) {
+    async compileTs(dist_file: string, src: string, dist: string, source_map: boolean) {
         const typesSafeScript = "./src/safescript";
         let compileOptions: ts.CompilerOptions;
         const configFileName = ts.findConfigFile(
@@ -475,18 +493,36 @@ class SafeScriptTransformer {
             } else {
                 compileOptions.types = [typesSafeScript];
             }
-            if (source_map) {
-                compileOptions.sourceMap = source_map;
-            }
         } else {
             compileOptions = {
                 allowJs: true,
-                types: [typesSafeScript],
-                sourceMap: source_map
+                types: [typesSafeScript]
             };
         }
+        compileOptions.rootDir = src;
+        compileOptions.outDir = dist;
+        compileOptions.sourceMap = source_map;
 
         const distProgram = ts.createProgram([dist_file], compileOptions);
+        let hasErrors = false;
+        const diagnostics = ts.getPreEmitDiagnostics(distProgram);
+        for (const diagnostic of diagnostics) {
+            if (diagnostic.category === ts.DiagnosticCategory.Error) {
+                this.errors += 1;
+                hasErrors = true;
+            }
+            let prefix = "";
+            switch (diagnostic.category) {
+                case ts.DiagnosticCategory.Warning: prefix = "warning"; break;
+                case ts.DiagnosticCategory.Error: prefix = "error"; break;
+                case ts.DiagnosticCategory.Suggestion: prefix = "suggestion"; break;
+                case ts.DiagnosticCategory.Message: prefix = "message"; break;
+            }
+            console.error(`${prefix}: ${diagnostic.messageText}`);
+        }
+        if (hasErrors) {
+            return;
+        }
         distProgram.emit();
         const dist_js_file = dist_file.replace(new RegExp('ts$'), 'js');
         const dist_file_map = dist_file + ".map";
@@ -520,7 +556,7 @@ class SafeScriptTransformer {
             return searchNode;
         }
 
-        if (ts.isFunctionDeclaration(searchNode)) {
+        if (isFunctionLike(searchNode)) {
             for (const nodeIfs of genContext.generatedNodeIfs) {
                 if (nodeIfs[0] === searchNode) {
                     removeIfs = nodeIfs[1];
@@ -554,12 +590,15 @@ class SafeScriptTransformer {
     generateMappings(genContext: SourceMapContext, originNode: ts.Node, originFile: ts.SourceFile, compiledFile: ts.SourceFile): string {
         let result = "";
 
+        if (originNode.getText(originFile) === "") {
+            return result;
+        }
         if (ts.isJSDocCommentContainingNode(originNode)) {
             return result;
         }
 
         const originChildren = originNode.getChildren(originFile);
-        if (ts.isFunctionDeclaration(originNode) ||
+        if (isFunctionLike(originNode) ||
             (originChildren.length === 0 &&
              !this.isSafeScriptOperator(originNode.getText(originFile)))) {
             const foundNode = this.findSimilarNode(genContext, compiledFile, compiledFile, originNode, originFile);
@@ -580,10 +619,16 @@ class SafeScriptTransformer {
                 genContext.origPrevCharacter = origPos.character;
                 genContext.origPrevLine = origPos.line;
                 genContext.lineItems += 1;
-                genContext.fullStart = foundNode.getStart(compiledFile)+1;
+                const foundNodeStart = foundNode.getStart(compiledFile);
+                if (isFunctionLike(foundNode)) {
+                    genContext.fullStart = foundNodeStart;
+                } else {
+                    genContext.fullStart = foundNodeStart+1;
+                }
 
-                if (ts.isFunctionDeclaration(originNode) &&
-                    ts.isFunctionDeclaration(foundNode)) {
+                if (isFunctionLike(originNode) &&
+                    isFunctionLike(foundNode) &&
+                    originNode.kind === foundNode.kind) {
                     let originIfs = 0;
                     if (originNode.body?.statements) {
                         for (const statement of originNode.body?.statements) {
@@ -683,7 +728,7 @@ class SafeScriptTransformer {
                         }
                     }
                 } else if (transformer.allow_ts &&
-                           ts.isFunctionDeclaration(node)) {
+                           isFunctionLike(node)) {
                     let checks: ts.Statement[] = getSafeCheckExpression(
                         node,
                         transformer.typeChecker,
@@ -813,8 +858,11 @@ async function main() {
             await safeScriptTransformer.generateSourceMap(file, dist_file);
         }
         if (fileExtension(dist_file) === "ts") {
-            await safeScriptTransformer.compileTs(dist_file, args.source_map);
+            await safeScriptTransformer.compileTs(dist_file, args.dist, args.dist, args.source_map);
         }
+    }
+    if (safeScriptTransformer.hasErrors) {
+        process.exit(-1);
     }
 }
 
