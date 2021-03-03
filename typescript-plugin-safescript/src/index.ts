@@ -61,7 +61,8 @@ function isUpdateOperator(operator: string) {
 function isFunctionLike(node: ts.Node): node is FunctionLike {
     return ts.isFunctionDeclaration(node) ||
            ts.isMethodDeclaration(node) ||
-           ts.isConstructorDeclaration(node);
+           ts.isConstructorDeclaration(node) ||
+           ts.isArrowFunction(node);
 }
 
 function operatorToString(kind: ts.SyntaxKind): string {
