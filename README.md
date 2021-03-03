@@ -10,13 +10,11 @@ In Node project add in `package.json`:
 ```json
   "main": "dist/index.js",
   "scripts": {
-    "prepare": "babel --source-maps both ./src/ --retain-lines -d ./dist",
+    "prepare": "safec ./src -d ./dist --src-map true --allow-ts",
     "start": "npm run prepare && node ./dist/index.js"
   },
   "devDependencies": {
-    "@babel/cli": "^7.12.16",
-    "@redradist/babel-plugin-safescript": "^0.2.0",
-    "@redradist/module-runtime-safescript": "^0.4.1"
+    "typescript-plugin-safescript": "^0.5.3"
   },
   "dependencies": {
     "@redradist/module-runtime-safescript": "^0.4.1"
