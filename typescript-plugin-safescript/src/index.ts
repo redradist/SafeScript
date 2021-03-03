@@ -473,7 +473,7 @@ class SafeScriptTransformer {
         return mergedSourceMap;
     }
 
-    async compileTs(dist_file: string, src: string, dist: string, source_map: boolean) {
+    async compileTs(src_file: string, dist_file: string, src: string, dist: string, source_map: boolean) {
         const typesSafeScript = "./src/safescript";
         let compileOptions: ts.CompilerOptions;
         const configFileName = ts.findConfigFile(
@@ -503,26 +503,60 @@ class SafeScriptTransformer {
         compileOptions.outDir = dist;
         compileOptions.sourceMap = source_map;
 
-        const distProgram = ts.createProgram([dist_file], compileOptions);
+        const origProgram = ts.createProgram([src_file], compileOptions);
         let hasErrors = false;
-        const diagnostics = ts.getPreEmitDiagnostics(distProgram);
+        const diagnostics = ts.getPreEmitDiagnostics(origProgram);
         for (const diagnostic of diagnostics) {
             if (diagnostic.category === ts.DiagnosticCategory.Error) {
                 this.errors += 1;
                 hasErrors = true;
             }
-            let prefix = "";
+            let prefix: string;
+            let log: (message?: any, ...optionalParams: any[]) => void;
+            let color: string;
             switch (diagnostic.category) {
-                case ts.DiagnosticCategory.Warning: prefix = "warning"; break;
-                case ts.DiagnosticCategory.Error: prefix = "error"; break;
-                case ts.DiagnosticCategory.Suggestion: prefix = "suggestion"; break;
-                case ts.DiagnosticCategory.Message: prefix = "message"; break;
+                case ts.DiagnosticCategory.Warning: {
+                    prefix = "warning";
+                    log = console.warn;
+                    color = "\x1b[33m";
+                    break;
+                }
+                case ts.DiagnosticCategory.Error: {
+                    prefix = "error";
+                    log = console.error;
+                    color = "\x1b[31m";
+                    break;
+                }
+                case ts.DiagnosticCategory.Suggestion: {
+                    prefix = "info";
+                    log = console.info;
+                    color = "\x1b[34m";
+                    break;
+                }
+                case ts.DiagnosticCategory.Message: {
+                    prefix = "msg";
+                    log = console.log;
+                    color = "\x1b[32m";
+                    break;
+                }
             }
-            console.error(`${prefix}: ${diagnostic.messageText}`);
+
+            let message = ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n");
+            if (diagnostic.file && diagnostic.start) {
+                const { line, character } = diagnostic.file.getLineAndCharacterOfPosition(
+                    diagnostic.start
+                );
+                console.log(`${diagnostic.file.fileName}:${line + 1}:${character + 1} - ${color}${prefix} \x1b[37mTS${diagnostic.code}: \x1b[30m${message}`);
+            } else {
+                log(`${prefix} TS${diagnostic.code}: ${message}`);
+            }
         }
         if (hasErrors) {
             return;
         }
+
+        compileOptions.rootDir = dist;
+        const distProgram = ts.createProgram([dist_file], compileOptions);
         distProgram.emit();
         const dist_js_file = dist_file.replace(new RegExp('ts$'), 'js');
         const dist_file_map = dist_file + ".map";
@@ -858,11 +892,12 @@ async function main() {
             await safeScriptTransformer.generateSourceMap(file, dist_file);
         }
         if (fileExtension(dist_file) === "ts") {
-            await safeScriptTransformer.compileTs(dist_file, args.dist, args.dist, args.source_map);
+            await safeScriptTransformer.compileTs(file, dist_file, args.src, args.dist, args.source_map);
         }
     }
     if (safeScriptTransformer.hasErrors) {
-        process.exit(-1);
+        console.log(`Process exiting with code '1'.`);
+        process.exit(1);
     }
 }
 
