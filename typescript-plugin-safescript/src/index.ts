@@ -3,6 +3,7 @@
 import * as ts from "typescript";
 import * as fs from "fs";
 import * as path from "path";
+import * as os from "os";
 import { encode, decode } from '@vivaxy/vlq';
 
 interface SourceMap {
@@ -301,7 +302,7 @@ class SafeScriptTransformer {
         this.typeChecker = undefined;
 
         const filename = src_file;
-        const typesSafeScript = `${__dirname}/../src/safescript`;
+        const typesSafeScript = getSafeScriptPath();
         const compileOptions: ts.CompilerOptions = {
             allowJs: true,
             types: [typesSafeScript]
@@ -326,7 +327,7 @@ class SafeScriptTransformer {
     }
 
     async generateSourceMap(file: string, dist_file: string) {
-        const typesSafeScript = `${__dirname}/../src/safescript`;
+        const typesSafeScript = getSafeScriptPath();
         const compileOptions: ts.CompilerOptions = {
             allowJs: true,
             types: [typesSafeScript]
@@ -477,10 +478,10 @@ class SafeScriptTransformer {
     }
 
     async compileTs(src_file: string, dist_file: string, src: string, dist: string, source_map: boolean) {
-        const typesSafeScript = `${__dirname}/../src/safescript`;
+        const typesSafeScript = getSafeScriptPath();
         let compileOptions: ts.CompilerOptions;
         const configFileName = ts.findConfigFile(
-            "./",
+            getCurrentRelativePath(),
             ts.sys.fileExists,
             "tsconfig.json"
         );
@@ -489,7 +490,7 @@ class SafeScriptTransformer {
             compileOptions = ts.parseJsonConfigFileContent(
                 configFile.config,
                 ts.sys,
-                "./"
+                getCurrentRelativePath()
             ).options;
             if (compileOptions.types) {
                 compileOptions.types.push(typesSafeScript);
@@ -831,6 +832,11 @@ function getArguments(): SafeScriptArguments {
         dist_dir = src_dir;
     }
 
+    if (os.platform() == 'win32') {
+        src_dir = src_dir.replace('\\', '/');
+        dist_dir = dist_dir.replace('\\', '/');
+    }
+
     src_dir = src_dir.replace(/^(\.\/)/,"");
     if (src_dir[src_dir.length-1] !== '/') {
         src_dir += '/';
@@ -838,6 +844,11 @@ function getArguments(): SafeScriptArguments {
     dist_dir = dist_dir.replace(/^(\.\/)/,"");
     if (dist_dir[dist_dir.length-1] !== '/') {
         dist_dir += '/';
+    }
+
+    if (os.platform() == 'win32') {
+        src_dir = src_dir.replace('/', '\\');
+        dist_dir = dist_dir.replace('/', '\\');
     }
 
     return {
@@ -870,6 +881,22 @@ async function getSourceFiles(src_dir: string): Promise<string[]> {
         }
     }
     return srcFiles;
+}
+
+function getCurrentRelativePath() {
+    if (os.platform() == 'win32') {
+        return ".\\";
+    } else {
+        return "./";
+    }
+}
+
+function getSafeScriptPath() {
+    if (os.platform() == 'win32') {
+        return `${__dirname}\\..\\src\\safescript`;
+    } else {
+        return `${__dirname}/../src/safescript`;
+    }
 }
 
 async function main() {
