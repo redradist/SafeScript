@@ -65,5 +65,5 @@ Using this `SafeScript` runtime fills like `Python` on V8 ;)
 ## Philosophy
 
 The Philosophy of `SafeScript`:
-1) Allow subset of "safe" operations in `JavaScript`
+1) Allow subset of "safe" operations in `JavaScript` and `TypeScript`
 2) Do not introduce a new valid behaviour in runtime, in such way it is easier just to remove `SafeScript` runtime at anytime
