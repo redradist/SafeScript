@@ -906,13 +906,15 @@ async function main() {
     console.log(`args.source_map is ${args.source_map}`);
     console.log(`args.allow_ts is ${args.allow_ts}`);
     const srcFiles = await getSourceFiles(args.src);
-    const filteredFiles = srcFiles.filter(file_name => {
+    const filterPredicate = (file_name: string) => {
         let ext = fileExtension(file_name);
         if (args.allow_ts) {
-            return ext === "js" || ext === "ts";
+            return ext === "js" || ext === "jsx" || ext === "ts" || ext === "tsx";
         }
-        return ext === "js";
-    });
+        return ext === "js" || ext === "jsx";
+    };
+    const filteredFiles = srcFiles.filter(filterPredicate);
+    const copyFiles = srcFiles.filter(file_name => !filterPredicate(file_name));
     await fs.promises.stat(args.dist).catch(async reason => {
         await fs.promises.mkdir(args.dist);
     });
@@ -929,6 +931,10 @@ async function main() {
         if (fileExtension(dist_file) === "ts") {
             await safeScriptTransformer.compileTs(file, dist_file, args.src, args.dist, args.source_map);
         }
+    }
+    for (let file of copyFiles) {
+        let dist_file = file.replace(args.src, args.dist);
+        await fs.promises.copyFile(file, dist_file);
     }
     if (safeScriptTransformer.hasErrors) {
         console.log(`Process exiting with code '1'.`);
