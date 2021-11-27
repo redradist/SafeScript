@@ -13,3 +13,6 @@ setTimeout(function (argument) {
     let end = new Date() - start;
     console.info('Execution time: %dms', end);
 }, simulateTime);
+
+
+const element = <h1>Hello, world!</h1>;
