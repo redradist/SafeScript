@@ -280,17 +280,15 @@ function getSafeCheckExpression(node: FunctionLike,
 class SafeScriptTransformer {
     private isUpdated: boolean;
     private typeChecker?: ts.TypeChecker;
-    private allow_ts?: boolean;
     private errors: number = 0;
+
+    constructor() {
+        this.isUpdated = false;
+        this.typeChecker = undefined;
+    }
 
     public get hasErrors() {
         return this.errors > 0;
-    }
-
-    constructor(allow_ts?: boolean) {
-        this.isUpdated = false;
-        this.typeChecker = undefined;
-        this.allow_ts = allow_ts;
     }
 
     get updated() {
@@ -322,6 +320,10 @@ class SafeScriptTransformer {
                 transformedSourceFile,
                 sourceFile
             );
+            const dist_file_dir = path.dirname(dist_file);
+            await fs.promises.mkdir(dist_file_dir, {
+                recursive: true
+            });
             await createFileAsync(dist_file, result);
         }
     }
@@ -801,6 +803,7 @@ type SafeScriptArguments = {
     dist: string,
     source_map: boolean,
     allow_ts: boolean,
+    allow_angular: boolean,
 };
 
 function getArguments(): SafeScriptArguments {
@@ -809,8 +812,9 @@ function getArguments(): SafeScriptArguments {
 
     let src_dir = './';
     let dist_dir;
-    let source_map = false;
-    let allow_ts = false;
+    let source_map = true;
+    let allow_ts = true;
+    let allow_angular = false;
     for (let i = 0; i < args.length; ++i) {
         if (args[i] === "-d") {
             if (i + 1 >= args.length) {
@@ -824,6 +828,8 @@ function getArguments(): SafeScriptArguments {
             source_map = Boolean(args[++i]);
         } else if (args[i] === "--allow-ts") {
             allow_ts = true;
+        } else if (args[i] === "--allow-angular") {
+            allow_angular = true;
         } else {
             src_dir = args[i];
         }
@@ -855,7 +861,8 @@ function getArguments(): SafeScriptArguments {
         src: path.resolve(src_dir),
         dist: path.resolve(dist_dir),
         source_map: source_map,
-        allow_ts: allow_ts
+        allow_ts: allow_ts,
+        allow_angular: allow_angular
     };
 }
 
@@ -905,6 +912,7 @@ async function main() {
     console.log(`args.dist is ${args.dist}`);
     console.log(`args.source_map is ${args.source_map}`);
     console.log(`args.allow_ts is ${args.allow_ts}`);
+    console.log(`args.allow_angular is ${args.allow_angular}`);
     const srcFiles = await getSourceFiles(args.src);
     const filterPredicate = (file_name: string) => {
         let ext = fileExtension(file_name);
@@ -918,7 +926,7 @@ async function main() {
     await fs.promises.stat(args.dist).catch(async reason => {
         await fs.promises.mkdir(args.dist);
     });
-    const safeScriptTransformer = new SafeScriptTransformer(args.allow_ts);
+    const safeScriptTransformer = new SafeScriptTransformer();
     for (let file of filteredFiles) {
         let dist_file = file.replace(args.src, args.dist);
         await safeScriptTransformer.transform(file, dist_file);
@@ -928,7 +936,7 @@ async function main() {
         if (args.source_map) {
             await safeScriptTransformer.generateSourceMap(file, dist_file);
         }
-        if (fileExtension(dist_file) === "ts") {
+        if (fileExtension(dist_file) === "ts" && !args.allow_angular) {
             await safeScriptTransformer.compileTs(file, dist_file, args.src, args.dist, args.source_map);
         }
     }
