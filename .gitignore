@@ -1,4 +1,8 @@
 .idea/
+.vscode/
+.editorconfig
+.angular/
 dist/
 node_modules/
 tsconfig.tsbuildinfo
+examples/typescript-plugin-angular/src2/
