@@ -17,10 +17,10 @@ declare namespace SafeScript {
     function rshfit(left: any, right: any): number;
     function arshift(left: any, right: any): number;
     function lshift(left: any, right: any): number;
-    function plus(any): number;
-    function minus(any): number;
-    function bit_not(any): number;
-    function inc(any): number;
-    function dec(any): number;
+    function plus(any: any): number;
+    function minus(any: any): number;
+    function bit_not(any: any): number;
+    function inc(any: any): number;
+    function dec(any: any): number;
     function suffix(): number;
 }

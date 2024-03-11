@@ -852,8 +852,8 @@ function getArguments(): SafeScriptArguments {
     }
 
     return {
-        src: src_dir,
-        dist: dist_dir,
+        src: path.resolve(src_dir),
+        dist: path.resolve(dist_dir),
         source_map: source_map,
         allow_ts: allow_ts
     };
@@ -934,6 +934,10 @@ async function main() {
     }
     for (let file of copyFiles) {
         let dist_file = file.replace(args.src, args.dist);
+        const dist_file_dir = path.dirname(dist_file);
+        await fs.promises.mkdir(dist_file_dir, {
+            recursive: true
+        });
         await fs.promises.copyFile(file, dist_file);
     }
     if (safeScriptTransformer.hasErrors) {
