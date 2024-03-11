@@ -1,6 +1,6 @@
 import { Component } from '@angular/core';
 
-function something(num: any) {
+function something(num: string) {
   if (typeof num !== "number") {
     throw new TypeError("num is not typeof 'number'");
   }
