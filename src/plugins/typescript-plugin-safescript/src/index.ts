@@ -1,10 +1,11 @@
 #!/usr/bin/env node
+import * as fs from "node:fs";
+import * as path from "node:path";
+import * as os from "node:os";
+import * as process from "node:process";
 
-import * as ts from "typescript";
-import * as fs from "fs";
-import * as path from "path";
-import * as os from "os";
-import { encode, decode } from '@vivaxy/vlq';
+import ts from "typescript";
+import { encode, decode } from "@vivaxy/vlq";
 
 interface SourceMap {
     version: number,
@@ -104,8 +105,8 @@ function getSafeBinaryExpression(operator: string,
         case "<<":  safeOperatorName = 'SafeScript.lshift'; break;
     }
     if (safeOperatorName) {
-        let leftTypeName = getTypeName(left, typeChecker);
-        let rightTypeName = getTypeName(right, typeChecker);
+        const leftTypeName = getTypeName(left, typeChecker);
+        const rightTypeName = getTypeName(right, typeChecker);
 
         if (leftTypeName === "string" && rightTypeName === "string") {
             return null;
@@ -136,8 +137,8 @@ function getSafeAssignmentExpression(operator: string,
         case "%=":   safeOperatorName = 'SafeScript.mod'; break;
     }
     if (safeOperatorName) {
-        let leftTypeName = getTypeName(left, typeChecker);
-        let rightTypeName = getTypeName(right, typeChecker);
+        const leftTypeName = getTypeName(left, typeChecker);
+        const rightTypeName = getTypeName(right, typeChecker);
 
         if (leftTypeName === "string" && rightTypeName === "string") {
             return null;
@@ -167,7 +168,7 @@ function getSafeUnaryExpression(operator: string,
         case "~":   safeOperatorName = 'SafeScript.bit_not'; break;
     }
     if (safeOperatorName) {
-        let typeName = getTypeName(node, typeChecker);
+        const typeName = getTypeName(node, typeChecker);
 
         if (["boolean", "number", "bigint"].includes(typeName)) {
             return null;
@@ -187,13 +188,12 @@ function getSafeUpdateExpression(operator: string,
                                  typeChecker: ts.TypeChecker,
                                  nodeFactory: ts.NodeFactory) {
     let safeOperatorName: string | null = null;
-    let safeBackOperatorName: string | null = null;
     switch (operator) {
         case "++":   safeOperatorName = 'SafeScript.inc'; break;
         case "--":   safeOperatorName = 'SafeScript.dec'; break;
     }
     if (safeOperatorName) {
-        let typeName = getTypeName(node, typeChecker);
+        const typeName = getTypeName(node, typeChecker);
 
         if (["boolean", "number", "bigint"].includes(typeName)) {
             return null;
@@ -221,8 +221,8 @@ function getSafeUpdateExpression(operator: string,
 function getSafeCheckExpression(node: FunctionLike,
                                 typeChecker: ts.TypeChecker,
                                 nodeFactory: ts.NodeFactory) {
-    let checks: ts.Statement[] = [];
-    let selfChecks: [string, string][] = [];
+    const checks: ts.Statement[] = [];
+    const selfChecks: [string, string][] = [];
     if (node.body && 'statements' in node.body) {
         let activeSelfCheck = true;
         node.body.statements.filter((value, index, array) => {
@@ -242,8 +242,8 @@ function getSafeCheckExpression(node: FunctionLike,
         });
     }
 
-    for (let param of node.parameters) {
-        let typeName = getTypeName(param, typeChecker);
+    for (const param of node.parameters) {
+        const typeName = getTypeName(param, typeChecker);
         if (['number', 'string', 'bigint', 'boolean', 'symbol'].includes(typeName)) {
             const typeCheck: [string, string] = [`typeof ${param.name.getText()}`, `"${typeName}"`];
             let isSelfCheck = false;
@@ -334,7 +334,7 @@ class SafeScriptTransformer {
             allowJs: true,
             types: [typesSafeScript]
         };
-        let relativePath = path.relative(path.dirname(dist_file), file);
+        const relativePath = path.relative(path.dirname(dist_file), file);
         const sourceMap: SourceMap = {
             version: 3,
             file: `${path.basename(dist_file)}`,
@@ -375,7 +375,7 @@ class SafeScriptTransformer {
     }
 
     getRealIndexMapping(sourceMap: SourceMap) {
-        let mappings = [];
+        const mappings = [];
 
         const mappingsLines = sourceMap.mappings.split(';');
         for (const line of mappingsLines) {
@@ -403,7 +403,7 @@ class SafeScriptTransformer {
     }
 
     mergeSourceMaps(oldSourceMap: SourceMap, newSourceMap: SourceMap): SourceMap {
-        let mergedSourceMap: SourceMap = {
+        const mergedSourceMap: SourceMap = {
             version: 3,
             file: "",
             sourceRoot: "",
@@ -416,8 +416,8 @@ class SafeScriptTransformer {
         mergedSourceMap.sources = oldSourceMap.sources;
         mergedSourceMap.names = newSourceMap.names;
 
-        let oldMappings = this.getRealIndexMapping(oldSourceMap);
-        let newMappings = this.getRealIndexMapping(newSourceMap);
+        const oldMappings = this.getRealIndexMapping(oldSourceMap);
+        const newMappings = this.getRealIndexMapping(newSourceMap);
 
         for (const newLine of newMappings) {
             const toRemove = [];
@@ -547,7 +547,7 @@ class SafeScriptTransformer {
                 }
             }
 
-            let message = ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n");
+            const message = ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n");
             if (diagnostic.file && diagnostic.start) {
                 const { line, character } = diagnostic.file.getLineAndCharacterOfPosition(
                     diagnostic.start
@@ -568,11 +568,11 @@ class SafeScriptTransformer {
         const dist_file_map = dist_file + ".map";
         const dist_js_file_map = dist_js_file + ".map";
 
-        let dist_file_source_map = await fs.promises.readFile(dist_file_map);
-        let dist_source_map: SourceMap = JSON.parse(dist_file_source_map.toString());
+        const dist_file_source_map = await fs.promises.readFile(dist_file_map);
+        const dist_source_map: SourceMap = JSON.parse(dist_file_source_map.toString());
 
-        let dist_js_file_source_map = await fs.promises.readFile(dist_js_file_map);
-        let dist_js_source_map: SourceMap = JSON.parse(dist_js_file_source_map.toString());
+        const dist_js_file_source_map = await fs.promises.readFile(dist_js_file_map);
+        const dist_js_source_map: SourceMap = JSON.parse(dist_js_file_source_map.toString());
 
         const newSourceMap = this.mergeSourceMaps(dist_source_map, dist_js_source_map);
         await createFileAsync(dist_js_file_map, JSON.stringify(newSourceMap));
@@ -684,7 +684,7 @@ class SafeScriptTransformer {
                                 compiledIfs += 1;
                             }
                         }
-                        let reduceIfs = compiledIfs - originIfs;
+                        const reduceIfs = compiledIfs - originIfs;
                         if (reduceIfs > 0) {
                             genContext.generatedNodeIfs.push([foundNode, reduceIfs]);
                         }
@@ -705,7 +705,7 @@ class SafeScriptTransformer {
     }
 
     private safeScriptTransformFactory() {
-        let transformer = this;
+        const transformer = this;
         return (context: ts.TransformationContext) =>
                (rootNode: ts.Node) => {
             function visit(node: ts.Node): ts.Node {
@@ -742,7 +742,7 @@ class SafeScriptTransformer {
                     }
                 } else if (ts.isPrefixUnaryExpression(node) ||
                            ts.isPostfixUnaryExpression(node)) {
-                    let operator_string = operatorToString(node.operator);
+                    const operator_string = operatorToString(node.operator);
                     if (isUnaryOperator(operator_string)) {
                         const safeUnaryExpression = getSafeUnaryExpression(
                             operator_string,
@@ -768,7 +768,7 @@ class SafeScriptTransformer {
                         }
                     }
                 } else if (isFunctionLike(node)) {
-                    let checks: ts.Statement[] = getSafeCheckExpression(
+                    const checks: ts.Statement[] = getSafeCheckExpression(
                         node,
                         transformer.typeChecker,
                         context.factory);
@@ -807,7 +807,7 @@ type SafeScriptArguments = {
 };
 
 function getArguments(): SafeScriptArguments {
-    let args = process.argv.slice(2);
+    const args = process.argv.slice(2);
     console.log('args: ', args);
 
     let src_dir = './';
@@ -871,17 +871,17 @@ function fileExtension(file_name: string) {
 }
 
 async function getSourceFiles(src_dir: string): Promise<string[]> {
-    let srcFiles: string[] = [];
-    let files = await fs.promises.readdir(src_dir);
-    for (let file of files) {
-        let file_path = path.join(src_dir, file);
-        let fileStats = await fs.promises.stat(file_path);
+    const srcFiles: string[] = [];
+    const files = await fs.promises.readdir(src_dir);
+    for (const file of files) {
+        const file_path = path.join(src_dir, file);
+        const fileStats = await fs.promises.stat(file_path);
         if (fileStats.isFile()) {
             srcFiles.push(file_path);
         } else if (fileStats.isDirectory()) {
-            let subFiles = await getSourceFiles(file_path);
+            const subFiles = await getSourceFiles(file_path);
             if (subFiles.length > 0) {
-                for (let subfile of subFiles) {
+                for (const subfile of subFiles) {
                     srcFiles.push(subfile);
                 }
             }
@@ -900,14 +900,14 @@ function getCurrentRelativePath() {
 
 function getSafeScriptPath() {
     if (os.platform() == 'win32') {
-        return `${__dirname}\\..\\src\\safescript`;
+        return `${__dirname}\\safescript`;
     } else {
-        return `${__dirname}/../src/safescript`;
+        return `${__dirname}/safescript`;
     }
 }
 
 async function main() {
-    let args = getArguments();
+    const args = getArguments();
     console.log(`args.src is ${args.src}`);
     console.log(`args.dist is ${args.dist}`);
     console.log(`args.source_map is ${args.source_map}`);
@@ -915,7 +915,7 @@ async function main() {
     console.log(`args.allow_angular is ${args.allow_angular}`);
     const srcFiles = await getSourceFiles(args.src);
     const filterPredicate = (file_name: string) => {
-        let ext = fileExtension(file_name);
+        const ext = fileExtension(file_name);
         if (args.allow_ts) {
             return ext === "js" || ext === "jsx" || ext === "ts" || ext === "tsx";
         }
@@ -927,8 +927,8 @@ async function main() {
         await fs.promises.mkdir(args.dist);
     });
     const safeScriptTransformer = new SafeScriptTransformer();
-    for (let file of filteredFiles) {
-        let dist_file = file.replace(args.src, args.dist);
+    for (const file of filteredFiles) {
+        const dist_file = file.replace(args.src, args.dist);
         await safeScriptTransformer.transform(file, dist_file);
         while (safeScriptTransformer.updated) {
             await safeScriptTransformer.transform(dist_file, dist_file);
@@ -940,8 +940,8 @@ async function main() {
             await safeScriptTransformer.compileTs(file, dist_file, args.src, args.dist, args.source_map);
         }
     }
-    for (let file of copyFiles) {
-        let dist_file = file.replace(args.src, args.dist);
+    for (const file of copyFiles) {
+        const dist_file = file.replace(args.src, args.dist);
         const dist_file_dir = path.dirname(dist_file);
         await fs.promises.mkdir(dist_file_dir, {
             recursive: true
