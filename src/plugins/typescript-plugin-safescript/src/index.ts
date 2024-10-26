@@ -3,6 +3,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
 import * as process from "node:process";
+import { parseArgs } from "node:util";
 
 import ts from "typescript";
 import { encode, decode } from "@vivaxy/vlq";
@@ -808,32 +809,37 @@ type SafeScriptArguments = {
 
 function getArguments(): SafeScriptArguments {
     const args = process.argv.slice(2);
-    console.log('args: ', args);
+    const options = {
+        'src': {
+            type: 'string',
+            short: 's',
+        },
+        'dest': {
+            type: 'string',
+            short: 'd',
+        },
+        'src-map': {
+            type: 'boolean',
+            default: false,
+        },
+        'allow-ts': {
+            type: 'boolean',
+            default: true,
+        },
+        'allow-angular': {
+            type: 'boolean',
+            default: false,
+        },
+    };
+    // @ts-ignore
+    const { values, positionals } = parseArgs({ args, options });
 
-    let src_dir = './';
-    let dist_dir;
-    let source_map = true;
-    let allow_ts = true;
-    let allow_angular = false;
-    for (let i = 0; i < args.length; ++i) {
-        if (args[i] === "-d") {
-            if (i + 1 >= args.length) {
-                throw new Error(`Missed required path option after '-d'`);
-            }
-            dist_dir = args[++i];
-        } else if (args[i] === "--src-map") {
-            if (i + 1 >= args.length) {
-                throw new Error(`Missed required boolean option after '--src-map'`);
-            }
-            source_map = Boolean(args[++i]);
-        } else if (args[i] === "--allow-ts") {
-            allow_ts = true;
-        } else if (args[i] === "--allow-angular") {
-            allow_angular = true;
-        } else {
-            src_dir = args[i];
-        }
-    }
+    let src_dir = values.src as string;
+    let dist_dir = values.dest as string;
+    const source_map = values['src-map'] as boolean;
+    const allow_ts = values['allow-ts'] as boolean;
+    const allow_angular = values['allow-angular'] as boolean;
+
     if (!dist_dir) {
         dist_dir = src_dir;
     }

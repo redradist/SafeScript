@@ -21,12 +21,12 @@
   },
   "scripts": {
     "prepare": "tsc",
-    "compiletest": "npm run prepare && node dist/index.js ./test -d ./dist --src-map true --allow-ts",
+    "compiletest": "npm run prepare && cp ./src/safescript.d.ts ./dist/ && node dist/index.js -s ./test -d ./dist --src-map --allow-ts",
     "test": "npm run compiletest && node dist/test.js",
     "test2": "npm run compiletest && node dist/test_ts.js"
   },
   "devDependencies": {
-    "@types/node": "^14.14.31"
+    "@types/node": "^20.0.0"
   },
   "dependencies": {
     "@vivaxy/vlq": "^1.1.0",
