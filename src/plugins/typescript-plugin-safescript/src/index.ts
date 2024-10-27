@@ -131,7 +131,7 @@ function addSafeScriptImport(rootNode: ts.SourceFile, defaultModuleType: ModuleT
             undefined
         );
     } else {
-        // Create a CommonJS require statement
+        // Create a CommonJS module side-effect require
         importDeclaration = ts.factory.createVariableStatement(
             undefined,
             ts.factory.createVariableDeclarationList(
@@ -380,11 +380,11 @@ class SafeScriptTransformer {
         return this.isUpdated;
     }
 
-    async transform(src_file: string, dist_file: string, safeScriptModule: ModuleType) {
+    async transform(srcFile: string, distFile: string, safeScriptModule: ModuleType) {
         this.isUpdated = false;
         this.typeChecker = undefined;
 
-        const filename = src_file;
+        const filename = srcFile;
         const typesSafeScript = getSafeScriptPath();
         const compileOptions: ts.CompilerOptions = {
             allowJs: true,
@@ -407,24 +407,24 @@ class SafeScriptTransformer {
                 transformedSourceFile,
                 sourceFile
             );
-            const dist_file_dir = path.dirname(dist_file);
-            await fs.promises.mkdir(dist_file_dir, {
+            const distFileDir = path.dirname(distFile);
+            await fs.promises.mkdir(distFileDir, {
                 recursive: true
             });
-            await createFileAsync(dist_file, result);
+            await createFileAsync(distFile, result);
         }
     }
 
-    async generateSourceMap(file: string, dist_file: string) {
+    async generateSourceMap(file: string, distFile: string) {
         const typesSafeScript = getSafeScriptPath();
         const compileOptions: ts.CompilerOptions = {
             allowJs: true,
             types: [typesSafeScript]
         };
-        const relativePath = path.relative(path.dirname(dist_file), file);
+        const relativePath = path.relative(path.dirname(distFile), file);
         const sourceMap: SourceMap = {
             version: 3,
-            file: `${path.basename(dist_file)}`,
+            file: `${path.basename(distFile)}`,
             sourceRoot: "",
             sources: [relativePath],
             names: [],
@@ -434,8 +434,8 @@ class SafeScriptTransformer {
         const origProgram = ts.createProgram([file], compileOptions);
         const origSourceFile = origProgram.getSourceFile(file);
 
-        const distProgram = ts.createProgram([dist_file], compileOptions);
-        const distSourceFile = distProgram.getSourceFile(dist_file);
+        const distProgram = ts.createProgram([distFile], compileOptions);
+        const distSourceFile = distProgram.getSourceFile(distFile);
 
         if (origSourceFile && distSourceFile) {
             const genContext: SourceMapContext = {
@@ -453,11 +453,11 @@ class SafeScriptTransformer {
             );
         }
 
-        await createFileAsync(`${dist_file}.map`, JSON.stringify(sourceMap));
-        if (fileExtension(dist_file) !== 'ts') {
-            const data = await fs.promises.readFile(dist_file, { encoding: 'utf8' });
-            const newData = data + "\r\n" + `//# sourceMappingURL=${path.basename(dist_file)}.map`;
-            await fs.promises.writeFile(dist_file, newData, { encoding: 'utf8' });
+        await createFileAsync(`${distFile}.map`, JSON.stringify(sourceMap));
+        if (fileExtension(distFile) !== 'ts') {
+            const data = await fs.promises.readFile(distFile, { encoding: 'utf8' });
+            const newData = data + "\r\n" + `//# sourceMappingURL=${path.basename(distFile)}.map`;
+            await fs.promises.writeFile(distFile, newData, { encoding: 'utf8' });
         }
     }
 
@@ -566,7 +566,7 @@ class SafeScriptTransformer {
         return mergedSourceMap;
     }
 
-    async compileTs(src_file: string, dist_file: string, src: string, dist: string, source_map: boolean) {
+    async compileTs(srcFile: string, distFile: string, src: string, dist: string, sourceMap: boolean) {
         const typesSafeScript = getSafeScriptPath();
         let compileOptions: ts.CompilerOptions;
         const configFileName = ts.findConfigFile(
@@ -594,9 +594,9 @@ class SafeScriptTransformer {
         }
         compileOptions.rootDir = src;
         compileOptions.outDir = dist;
-        compileOptions.sourceMap = source_map;
+        compileOptions.sourceMap = sourceMap;
 
-        const origProgram = ts.createProgram([src_file], compileOptions);
+        const origProgram = ts.createProgram([srcFile], compileOptions);
         let hasErrors = false;
         const diagnostics = ts.getPreEmitDiagnostics(origProgram);
         for (const diagnostic of diagnostics) {
@@ -649,19 +649,19 @@ class SafeScriptTransformer {
         }
 
         compileOptions.rootDir = dist;
-        const distProgram = ts.createProgram([dist_file], compileOptions);
+        const distProgram = ts.createProgram([distFile], compileOptions);
         distProgram.emit();
-        const dist_js_file = dist_file.replace(new RegExp('ts$'), 'js');
-        const dist_file_map = dist_file + ".map";
+        const dist_js_file = distFile.replace(new RegExp('ts$'), 'js');
+        const distFile_map = distFile + ".map";
         const dist_js_file_map = dist_js_file + ".map";
 
-        const dist_file_source_map = await fs.promises.readFile(dist_file_map);
-        const dist_source_map: SourceMap = JSON.parse(dist_file_source_map.toString());
+        const distFile_sourceMap = await fs.promises.readFile(distFile_map);
+        const dist_sourceMap: SourceMap = JSON.parse(distFile_sourceMap.toString());
 
-        const dist_js_file_source_map = await fs.promises.readFile(dist_js_file_map);
-        const dist_js_source_map: SourceMap = JSON.parse(dist_js_file_source_map.toString());
+        const dist_js_file_sourceMap = await fs.promises.readFile(dist_js_file_map);
+        const dist_js_sourceMap: SourceMap = JSON.parse(dist_js_file_sourceMap.toString());
 
-        const newSourceMap = this.mergeSourceMaps(dist_source_map, dist_js_source_map);
+        const newSourceMap = this.mergeSourceMaps(dist_sourceMap, dist_js_sourceMap);
         await createFileAsync(dist_js_file_map, JSON.stringify(newSourceMap));
     }
 
@@ -890,9 +890,9 @@ type ModuleType = 'es' | 'commonjs';
 type SafeScriptArguments = {
     src: string,
     dist: string,
-    source_map: boolean,
-    allow_ts: boolean,
-    allow_angular: boolean,
+    sourceMap: boolean,
+    allowTs: boolean,
+    allowAngular: boolean,
     module: ModuleType,
 };
 
@@ -929,11 +929,11 @@ function getArguments(): SafeScriptArguments {
 
     let src_dir = values.src as string;
     let dist_dir = values.dest as string;
-    console.assert(typeof values['src-map'] === 'boolean', "source_map must be a boolean");
-    console.assert(typeof values['allow-ts'] === 'boolean', "allow_ts must be a boolean");
-    console.assert(typeof values['allow-angular'] === 'boolean', "allow_angular must be a boolean");
+    console.assert(typeof values['src-map'] === 'boolean', "sourceMap must be a boolean");
+    console.assert(typeof values['allow-ts'] === 'boolean', "allowTs must be a boolean");
+    console.assert(typeof values['allow-angular'] === 'boolean', "allowAngular must be a boolean");
 
-    const source_map = values['src-map'] as boolean;
+    const sourceMap = values['src-map'] as boolean;
     const allow_ts = values['allow-ts'] as boolean;
     const allow_angular = values['allow-angular'] as boolean;
     const safescript_module = values['module'] as string;
@@ -965,9 +965,9 @@ function getArguments(): SafeScriptArguments {
     return {
         src: path.resolve(src_dir),
         dist: path.resolve(dist_dir),
-        source_map: source_map,
-        allow_ts: allow_ts,
-        allow_angular: allow_angular,
+        sourceMap: sourceMap,
+        allowTs: allow_ts,
+        allowAngular: allow_angular,
         module: safescript_module as ModuleType,
     };
 }
@@ -1016,14 +1016,14 @@ async function main() {
     const args = getArguments();
     console.log(`args.src is ${args.src}`);
     console.log(`args.dist is ${args.dist}`);
-    console.log(`args.source_map is ${args.source_map}`);
-    console.log(`args.allow_ts is ${args.allow_ts}`);
-    console.log(`args.allow_angular is ${args.allow_angular}`);
+    console.log(`args.sourceMap is ${args.sourceMap}`);
+    console.log(`args.allow_ts is ${args.allowTs}`);
+    console.log(`args.allow_angular is ${args.allowAngular}`);
     console.log(`args.module is ${args.module}`);
     const srcFiles = await getSourceFiles(args.src);
     const filterPredicate = (file_name: string) => {
         const ext = fileExtension(file_name);
-        if (args.allow_ts) {
+        if (args.allowTs) {
             return ext === "js" || ext === "jsx" || ext === "ts" || ext === "tsx";
         }
         return ext === "js" || ext === "jsx";
@@ -1035,25 +1035,25 @@ async function main() {
     });
     const safeScriptTransformer = new SafeScriptTransformer();
     for (const file of filteredFiles) {
-        const dist_file = file.replace(args.src, args.dist);
-        await safeScriptTransformer.transform(file, dist_file, args.module);
+        const distFile = file.replace(args.src, args.dist);
+        await safeScriptTransformer.transform(file, distFile, args.module);
         while (safeScriptTransformer.updated) {
-            await safeScriptTransformer.transform(dist_file, dist_file, args.module);
+            await safeScriptTransformer.transform(distFile, distFile, args.module);
         }
-        if (args.source_map) {
-            await safeScriptTransformer.generateSourceMap(file, dist_file);
+        if (args.sourceMap) {
+            await safeScriptTransformer.generateSourceMap(file, distFile);
         }
-        if (fileExtension(dist_file) === "ts" && !args.allow_angular) {
-            await safeScriptTransformer.compileTs(file, dist_file, args.src, args.dist, args.source_map);
+        if (fileExtension(distFile) === "ts" && !args.allowAngular) {
+            await safeScriptTransformer.compileTs(file, distFile, args.src, args.dist, args.sourceMap);
         }
     }
     for (const file of copyFiles) {
-        const dist_file = file.replace(args.src, args.dist);
-        const dist_file_dir = path.dirname(dist_file);
-        await fs.promises.mkdir(dist_file_dir, {
+        const distFile = file.replace(args.src, args.dist);
+        const distFile_dir = path.dirname(distFile);
+        await fs.promises.mkdir(distFile_dir, {
             recursive: true
         });
-        await fs.promises.copyFile(file, dist_file);
+        await fs.promises.copyFile(file, distFile);
     }
     if (safeScriptTransformer.hasErrors) {
         console.log(`Process exiting with code '1'.`);
