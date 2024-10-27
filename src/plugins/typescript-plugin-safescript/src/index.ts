@@ -79,6 +79,89 @@ function operatorToString(kind: ts.SyntaxKind): string {
     return "";
 }
 
+function detectModuleType(rootNode: ts.SourceFile): ModuleType | undefined {
+    const hasAnyImport = rootNode.statements.find((node) =>
+        ts.isImportDeclaration(node) ||
+        (ts.isVariableStatement(node) &&
+            node.declarationList.declarations.some(
+                (decl) =>
+                    decl.initializer !== undefined &&
+                    ts.isCallExpression(decl.initializer) &&
+                    decl.initializer.expression.getText() === 'require'
+            )
+        )
+    );
+
+    if (hasAnyImport) {
+        return ts.isImportDeclaration(hasAnyImport) ? 'es' : 'commonjs';
+    }
+}
+
+function addSafeScriptImport(rootNode: ts.SourceFile, defaultModuleType: ModuleType): ts.SourceFile {
+    const safeScriptModuleRuntimeVar = "module_runtime_safescript";
+    const safeScriptModuleRuntime = "@redradist/module-runtime-safescript";
+
+    // Check if an import from `safeScriptModuleRuntime` already exists
+    const hasImport = rootNode.statements.some((node) =>
+        ts.isImportDeclaration(node)
+            ? node.moduleSpecifier.getText(rootNode) === `"${safeScriptModuleRuntime}"`
+            : ts.isVariableStatement(node) &&
+            node.declarationList.declarations.some(
+                (decl) =>
+                    decl.initializer !== undefined &&
+                    ts.isCallExpression(decl.initializer) &&
+                    decl.initializer.expression.getText() === 'require' &&
+                    decl.initializer.arguments[0]?.getText() === `"${safeScriptModuleRuntime}"`
+            )
+    );
+
+    if (hasImport) {
+        return rootNode;
+    }
+
+    // Create an import declaration with only the module name for side effects
+    let importDeclaration: ts.Statement;
+    if (defaultModuleType === 'es') {
+        // Create an ES module side-effect import
+        importDeclaration = ts.factory.createImportDeclaration(
+            undefined,
+            undefined,
+            ts.factory.createStringLiteral(safeScriptModuleRuntime),
+            undefined
+        );
+    } else {
+        // Create a CommonJS require statement
+        importDeclaration = ts.factory.createVariableStatement(
+            undefined,
+            ts.factory.createVariableDeclarationList(
+                [
+                    ts.factory.createVariableDeclaration(
+                        ts.factory.createIdentifier(safeScriptModuleRuntimeVar),
+                        undefined,
+                        undefined,
+                        ts.factory.createCallExpression(
+                            ts.factory.createIdentifier('require'),
+                            undefined,
+                            [
+                                ts.factory.createStringLiteral(safeScriptModuleRuntime),
+                            ])
+                    ),
+                ],
+                ts.NodeFlags.Const
+            )
+        );
+    }
+
+
+    // Add the new import at the beginning of the file
+    const newStatements = ts.factory.createNodeArray([
+        importDeclaration,
+        ...rootNode.statements
+    ]);
+
+    return ts.factory.updateSourceFile(rootNode as ts.SourceFile, newStatements);
+}
+
 function getSafeBinaryExpression(operator: string,
                                  left: ts.Expression,
                                  right: ts.Expression,
@@ -296,7 +379,7 @@ class SafeScriptTransformer {
         return this.isUpdated;
     }
 
-    async transform(src_file: string, dist_file: string) {
+    async transform(src_file: string, dist_file: string, safeScriptModule: ModuleType) {
         this.isUpdated = false;
         this.typeChecker = undefined;
 
@@ -307,10 +390,12 @@ class SafeScriptTransformer {
             types: [typesSafeScript]
         };
         const program = ts.createProgram([filename], compileOptions);
-        const sourceFile = program.getSourceFile(filename);
+        let sourceFile = program.getSourceFile(filename);
         this.typeChecker = program.getTypeChecker();
 
         if (sourceFile) {
+            const fileModuleType = detectModuleType(sourceFile);
+            sourceFile = addSafeScriptImport(sourceFile, fileModuleType ? fileModuleType : safeScriptModule);
             const transformationResult = ts.transform(
                 sourceFile, [this.safeScriptTransformFactory()], compileOptions
             );
@@ -799,12 +884,15 @@ function createFileAsync(file_name: string, text: string): Promise<any> {
     });
 }
 
+type ModuleType = 'es' | 'commonjs';
+
 type SafeScriptArguments = {
     src: string,
     dist: string,
     source_map: boolean,
     allow_ts: boolean,
     allow_angular: boolean,
+    module: ModuleType,
 };
 
 function getArguments(): SafeScriptArguments {
@@ -830,15 +918,25 @@ function getArguments(): SafeScriptArguments {
             type: 'boolean',
             default: false,
         },
+        'module': {
+            type: 'string',
+            default: 'es',
+        },
     };
     // @ts-ignore
     const { values, positionals } = parseArgs({ args, options });
 
     let src_dir = values.src as string;
     let dist_dir = values.dest as string;
+    console.assert(typeof values['src-map'] === 'boolean', "source_map must be a boolean");
+    console.assert(typeof values['allow-ts'] === 'boolean', "allow_ts must be a boolean");
+    console.assert(typeof values['allow-angular'] === 'boolean', "allow_angular must be a boolean");
+
     const source_map = values['src-map'] as boolean;
     const allow_ts = values['allow-ts'] as boolean;
     const allow_angular = values['allow-angular'] as boolean;
+    const safescript_module = values['module'] as string;
+    console.assert(safescript_module in ['es', 'commonjs'], "module must be on of ['es', 'commonjs']");
 
     if (!dist_dir) {
         dist_dir = src_dir;
@@ -868,7 +966,8 @@ function getArguments(): SafeScriptArguments {
         dist: path.resolve(dist_dir),
         source_map: source_map,
         allow_ts: allow_ts,
-        allow_angular: allow_angular
+        allow_angular: allow_angular,
+        module: safescript_module as ModuleType,
     };
 }
 
@@ -919,6 +1018,7 @@ async function main() {
     console.log(`args.source_map is ${args.source_map}`);
     console.log(`args.allow_ts is ${args.allow_ts}`);
     console.log(`args.allow_angular is ${args.allow_angular}`);
+    console.log(`args.module is ${args.module}`);
     const srcFiles = await getSourceFiles(args.src);
     const filterPredicate = (file_name: string) => {
         const ext = fileExtension(file_name);
@@ -935,9 +1035,9 @@ async function main() {
     const safeScriptTransformer = new SafeScriptTransformer();
     for (const file of filteredFiles) {
         const dist_file = file.replace(args.src, args.dist);
-        await safeScriptTransformer.transform(file, dist_file);
+        await safeScriptTransformer.transform(file, dist_file, args.module);
         while (safeScriptTransformer.updated) {
-            await safeScriptTransformer.transform(dist_file, dist_file);
+            await safeScriptTransformer.transform(dist_file, dist_file, args.module);
         }
         if (args.source_map) {
             await safeScriptTransformer.generateSourceMap(file, dist_file);

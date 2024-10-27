@@ -1,3 +1,6 @@
+import "@redradist/module-runtime-safescript";
+import util from 'node:util';
+
 const str0 = "3124122";
 const num0 = 9;
 const str1 = "3124122";

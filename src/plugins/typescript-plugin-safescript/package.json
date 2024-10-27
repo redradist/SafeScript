@@ -21,7 +21,7 @@
   },
   "scripts": {
     "prepare": "tsc",
-    "compiletest": "npm run prepare && cp ./src/safescript.d.ts ./dist/ && node dist/index.js -s ./test -d ./dist --src-map --allow-ts",
+    "compiletest": "npm run prepare && cp ./src/safescript.d.ts ./dist/ && node dist/index.js -s ./test -d ./dist --src-map --allow-ts --module commonjs",
     "test": "npm run compiletest && node dist/test.js",
     "test2": "npm run compiletest && node dist/test_ts.js"
   },
