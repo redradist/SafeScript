@@ -98,20 +98,21 @@ function detectModuleType(rootNode: ts.SourceFile): ModuleType | undefined {
 }
 
 function addSafeScriptImport(rootNode: ts.SourceFile, defaultModuleType: ModuleType): ts.SourceFile {
+    const safeScriptEsModuleRuntime = "@redradist/module-runtime-safescript";
     const safeScriptModuleRuntimeVar = "module_runtime_safescript";
-    const safeScriptModuleRuntime = "@redradist/module-runtime-safescript";
+    const safeScriptCommonJsModuleRuntime = "@redradist/commonjs-runtime-safescript";
 
     // Check if an import from `safeScriptModuleRuntime` already exists
     const hasImport = rootNode.statements.some((node) =>
         ts.isImportDeclaration(node)
-            ? node.moduleSpecifier.getText(rootNode) === `"${safeScriptModuleRuntime}"`
+            ? node.moduleSpecifier.getText(rootNode) === `"${safeScriptEsModuleRuntime}"`
             : ts.isVariableStatement(node) &&
             node.declarationList.declarations.some(
                 (decl) =>
                     decl.initializer !== undefined &&
                     ts.isCallExpression(decl.initializer) &&
                     decl.initializer.expression.getText() === 'require' &&
-                    decl.initializer.arguments[0]?.getText() === `"${safeScriptModuleRuntime}"`
+                    decl.initializer.arguments[0]?.getText() === `"${safeScriptCommonJsModuleRuntime}"`
             )
     );
 
@@ -126,7 +127,7 @@ function addSafeScriptImport(rootNode: ts.SourceFile, defaultModuleType: ModuleT
         importDeclaration = ts.factory.createImportDeclaration(
             undefined,
             undefined,
-            ts.factory.createStringLiteral(safeScriptModuleRuntime),
+            ts.factory.createStringLiteral(safeScriptEsModuleRuntime),
             undefined
         );
     } else {
@@ -143,7 +144,7 @@ function addSafeScriptImport(rootNode: ts.SourceFile, defaultModuleType: ModuleT
                             ts.factory.createIdentifier('require'),
                             undefined,
                             [
-                                ts.factory.createStringLiteral(safeScriptModuleRuntime),
+                                ts.factory.createStringLiteral(safeScriptCommonJsModuleRuntime),
                             ])
                     ),
                 ],
