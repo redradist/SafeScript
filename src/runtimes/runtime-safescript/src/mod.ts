@@ -70,7 +70,7 @@ function isSafeOperation(left_type: any, right_type: any, types: any) {
     }
 }
 
-export class SafeScript {
+export default class SafeScript {
 
     static add(left: any, right: any) {
         const left_type = typeof left;
