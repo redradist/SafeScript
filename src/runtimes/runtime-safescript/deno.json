@@ -1,0 +1,16 @@
+{
+  "name": "@redradist/safescript-runtime",
+  "version": "0.7.0",
+  "description": "SafeScript runtime",
+  "author": {
+    "name": "redradist",
+    "email": "redradist@gmail.com",
+    "url": "https://github.com/redradist/SafeScript"
+  },
+  "exports": "./src/mod.ts",
+  "keywords": [
+    "predictable",
+    "safe"
+  ],
+  "license": "MIT"
+}
