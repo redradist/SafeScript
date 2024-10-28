@@ -115,12 +115,10 @@ function applyOperatorOverload(symbol: symbol, left: any, right: any | undefined
     const left_type = typeof left;
     const right_type = typeof right;
     if (left_type === "object" && symbol in left) {
-        const right_value = implicitToNumber(right);
-        return left[symbol](right_value);
+        return left[symbol](right);
     }
     if (right_type === "object" && symbol in right && !isOnlyLeftHanded(left)) {
-        const left_value = implicitToNumber(left);
-        return right[symbol](left_value);
+        return right[symbol](left);
     }
 }
 
